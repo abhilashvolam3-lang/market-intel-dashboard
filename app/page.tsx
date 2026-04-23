@@ -48,29 +48,25 @@ export default function Home() {
   const [allProducts, setAllProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [analysisFilter, setAnalysisFilter] = useState<string>('all')
+  const [running, setRunning] = useState(false)
+  const [runStatus, setRunStatus] = useState<string | null>(null)
 
-  // ── ADD THESE TWO RIGHT HERE ──
-const [running, setRunning] = useState(false)
-const [runStatus, setRunStatus] = useState<string | null>(null)
-
-// ── ADD THIS FUNCTION RIGHT HERE (before useEffect) ──
-const triggerRun = async () => {
-  setRunning(true)
-  setRunStatus(null)
-  try {
-    const res = await fetch('/api/trigger-run', { method: 'POST' })
-    const data = await res.json()
-    if (data.success) {
-      setRunStatus('✅ Pipeline started! Data will refresh in ~3 minutes.')
-    } else {
-      setRunStatus('❌ Failed: ' + data.error)
+  const triggerRun = async () => {
+    setRunning(true)
+    setRunStatus(null)
+    try {
+      const res = await fetch('/api/trigger-run', { method: 'POST' })
+      const data = await res.json()
+      if (data.success) {
+        setRunStatus('✅ Pipeline started! Data will refresh in ~3 minutes.')
+      } else {
+        setRunStatus('❌ Failed: ' + data.error)
+      }
+    } catch (e) {
+      setRunStatus('❌ Network error')
     }
-  } catch (e) {
-    setRunStatus('❌ Network error')
+    setRunning(false)
   }
-  setRunning(false)
-}
-
 
   useEffect(() => {
     async function fetchData() {
@@ -93,7 +89,6 @@ const triggerRun = async () => {
     fetchData()
   }, [])
 
-  // Filter + sort products
   const filteredProducts = allProducts
     .filter(p => activeSource === 'all' || p.source === activeSource)
     .filter(p => !searchTerm || p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand?.toLowerCase().includes(searchTerm.toLowerCase()) || p.scent_name?.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -142,6 +137,25 @@ const triggerRun = async () => {
                 Updated: {new Date(trend.created_at).toLocaleString()}
               </p>
             )}
+            {runStatus && (
+              <span style={{ fontSize: '12px', color: runStatus.startsWith('✅') ? '#10b981' : '#ef4444' }}>
+                {runStatus}
+              </span>
+            )}
+            <button
+              onClick={triggerRun}
+              disabled={running}
+              style={{
+                background: running ? '#1e2433' : 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+                color: '#fff', border: 'none', borderRadius: '8px',
+                padding: '9px 18px', fontSize: '13px', fontWeight: '700',
+                cursor: running ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8,
+                transition: 'all 0.2s', opacity: running ? 0.6 : 1
+              }}
+            >
+              {running ? '⏳ Running...' : '▶ Run Now'}
+            </button>
             <span style={{ background: '#2ecc71', color: '#fff', fontSize: '11px', padding: '4px 12px', borderRadius: '20px', fontWeight: '700', letterSpacing: '0.5px' }}>● LIVE</span>
           </div>
         </div>
@@ -197,7 +211,6 @@ const triggerRun = async () => {
         ══════════════════════════════════════════════════════ */}
         {activeTab === 'analysis' && (
           <div>
-            {/* Section filter pills */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '20px' }}>
               <button onClick={() => setAnalysisFilter('all')} style={{
                 padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600',
@@ -212,7 +225,6 @@ const triggerRun = async () => {
               ))}
             </div>
 
-            {/* Analysis grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {filteredSections.map((section, i) => (
                 <div key={i} style={{
@@ -252,10 +264,7 @@ const triggerRun = async () => {
         ══════════════════════════════════════════════════════ */}
         {activeTab === 'data' && (
           <div>
-            {/* Controls row */}
             <div style={{ display: 'flex', gap: 12, marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-
-              {/* Search */}
               <input
                 placeholder="🔍 Search product, brand, scent..."
                 value={searchTerm}
@@ -266,8 +275,6 @@ const triggerRun = async () => {
                   outline: 'none'
                 }}
               />
-
-              {/* Source filter */}
               <div style={{ display: 'flex', gap: 4, background: '#1e2433', borderRadius: '8px', padding: '4px' }}>
                 {(['all', 'amazon', 'walmart'] as const).map(s => (
                   <button key={s} onClick={() => setActiveSource(s)} style={{
@@ -278,8 +285,6 @@ const triggerRun = async () => {
                   }}>{s === 'all' ? '🌐 All' : s === 'amazon' ? '📦 Amazon' : '🛒 Walmart'}</button>
                 ))}
               </div>
-
-              {/* Sort */}
               <select
                 value={sortBy}
                 onChange={e => setSortBy(e.target.value as any)}
@@ -294,13 +299,11 @@ const triggerRun = async () => {
                 <option value="burn_hours">Sort: Burn Hours</option>
                 <option value="burn_per_oz">Sort: Burn/oz</option>
               </select>
-
               <span style={{ color: '#8892a4', fontSize: '13px', marginLeft: 'auto' }}>
                 Showing {filteredProducts.length} products
               </span>
             </div>
 
-            {/* Product grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
               {filteredProducts.map((p, i) => (
                 <div key={p.id} onClick={() => setSelectedProduct(selectedProduct?.id === p.id ? null : p)}
@@ -343,7 +346,6 @@ const triggerRun = async () => {
                     </div>
                   </div>
 
-                  {/* Expanded detail panel */}
                   {selectedProduct?.id === p.id && (
                     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #2a2f3e' }}>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
@@ -395,7 +397,7 @@ const triggerRun = async () => {
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 6px; } 
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #0f1117; }
         ::-webkit-scrollbar-thumb { background: #2a2f3e; border-radius: 3px; }
         input::placeholder { color: #4a5568; }
