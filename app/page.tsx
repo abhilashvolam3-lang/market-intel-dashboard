@@ -35,18 +35,6 @@ const sectionIcons: Record<string, string> = {
   'Performance Metrics': '📊',
   'Customer Sentiment (Amazon scented jar candles)': '💬',
   'Growth Opportunities': '🚀',
-  // fallbacks for old analysis
-  'Fragrance Analysis': '🌸',
-  'Brand Landscape': '🏷️',
-  'Pricing Intelligence': '💰',
-  'Product Format & Design': '📦',
-  'Burn Time Efficiency': '🕯️',
-  'Customer Sentiment': '💬',
-  'Amazon vs Walmart Comparison': '🛒',
-  'Burn Time Efficiency (Amazon data only)': '🔥',
-  'Product Format & Design (Amazon data)': '📦',
-  'Growth Opportunities (combined insight)': '🚀',
-  'Amazon vs Walmart Comparison (Scented Candles only)': '⚖️',
 }
 
 export default function Home() {
