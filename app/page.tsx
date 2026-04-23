@@ -49,6 +49,29 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [analysisFilter, setAnalysisFilter] = useState<string>('all')
 
+  // ── ADD THESE TWO RIGHT HERE ──
+const [running, setRunning] = useState(false)
+const [runStatus, setRunStatus] = useState<string | null>(null)
+
+// ── ADD THIS FUNCTION RIGHT HERE (before useEffect) ──
+const triggerRun = async () => {
+  setRunning(true)
+  setRunStatus(null)
+  try {
+    const res = await fetch('/api/trigger-run', { method: 'POST' })
+    const data = await res.json()
+    if (data.success) {
+      setRunStatus('✅ Pipeline started! Data will refresh in ~3 minutes.')
+    } else {
+      setRunStatus('❌ Failed: ' + data.error)
+    }
+  } catch (e) {
+    setRunStatus('❌ Network error')
+  }
+  setRunning(false)
+}
+
+
   useEffect(() => {
     async function fetchData() {
       const { data: trends } = await supabase
