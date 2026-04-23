@@ -33,9 +33,9 @@ const sectionIcons: Record<string, string> = {
   'Burn Time Efficiency': '🕯️',
   'Performance Metrics': '📊',
   'Customer Sentiment': '💬',
+  'Amazon vs Walmart Comparison': '🛒',
   'Growth Opportunities': '🚀',
 }
-
 export default async function Home() {
   const { data: trends } = await supabase
     .from('trend_analysis')
