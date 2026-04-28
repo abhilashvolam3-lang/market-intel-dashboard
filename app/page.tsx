@@ -20,7 +20,7 @@ function parseAnalysisSections(analysis: string) {
     } else if (current) {
       current.content.push(clean)
     }
-  }
+  }    
   if (current) sections.push(current)
   return sections
 }
