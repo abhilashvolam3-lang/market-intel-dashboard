@@ -27,31 +27,42 @@ function parseAnalysisSections(analysis: string) {
 
 const sectionIcons: Record<string, string> = {
   'Scented Jar Candles Analysis (Amazon)': '🕯️',
-  'Unscented Candles Analysis (Amazon)': '🤍',
+  'Multi-Pack & Gift Sets (Amazon)': '🎁',
   'Multi-Pack & Gift Sets Analysis (Amazon)': '🎁',
+  'P.F. Candle Co Analysis (Premium Indie)': '✨',
+  'Mass Market Retail Comparison (Walmart vs Target)': '🛒',
+  'Cross-Platform Price Intelligence': '💰',
+  'Brand Landscape (All Sources)': '🏷️',
+  'Performance Metrics': '📊',
+  'Customer Sentiment (Amazon)': '💬',
+  'Customer Sentiment (Amazon scented jar candles)': '💬',
+  'Growth Opportunities': '🚀',
+  'Unscented Candles Analysis (Amazon)': '🤍',
   'Brand Landscape (Amazon)': '🏷️',
   'Walmart Scented Candles Analysis': '🛒',
   'Amazon vs Walmart Comparison (Scented Candles only)': '⚖️',
-  'Performance Metrics': '📊',
-  'Customer Sentiment (Amazon scented jar candles)': '💬',
-  'Growth Opportunities': '🚀',
   'Fragrance Analysis': '🌸',
   'Brand Landscape': '🏷️',
   'Pricing Intelligence': '💰',
   'Product Format & Design': '📦',
   'Burn Time Efficiency': '🕯️',
-  'Customer Sentiment': '💬',
-  'Amazon vs Walmart Comparison': '🛒',
   'Burn Time Efficiency (Amazon data only)': '🔥',
   'Product Format & Design (Amazon data)': '📦',
   'Growth Opportunities (combined insight)': '🚀',
+  'Amazon vs Walmart Comparison': '🛒',
+}
+
+const sourceConfig: Record<string, { bg: string; color: string; label: string }> = {
+  amazon: { bg: '#ff990020', color: '#fbbf24', label: 'AMAZON' },
+  walmart: { bg: '#0071ce20', color: '#60a5fa', label: 'WALMART' },
+  target: { bg: '#cc000020', color: '#f87171', label: 'TARGET' },
+  pfcandleco: { bg: '#8b5cf620', color: '#a78bfa', label: 'PF CANDLE' },
 }
 
 function renderLine(line: string, j: number) {
   const clean = line.replace(/\s+/g, ' ').trim()
   if (!clean) return null
 
-  // Numbered items
   if (clean.match(/^\d+\.\s/)) {
     return (
       <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '8px 0 4px', fontSize: '13px' }}>
@@ -59,8 +70,6 @@ function renderLine(line: string, j: number) {
       </p>
     )
   }
-
-  // * subheadings
   if (clean.startsWith('* ')) {
     return (
       <p key={j} style={{
@@ -71,8 +80,6 @@ function renderLine(line: string, j: number) {
       </p>
     )
   }
-
-  // + or - or • bullet points
   if (clean.startsWith('+ ') || clean.startsWith('- ') || clean.startsWith('• ')) {
     return (
       <div key={j} style={{ display: 'flex', gap: '8px', margin: '4px 0', paddingLeft: '8px' }}>
@@ -81,8 +88,6 @@ function renderLine(line: string, j: number) {
       </div>
     )
   }
-
-  // ## subheadings inside sections
   if (clean.match(/^#{1,3}\s/)) {
     return (
       <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '10px 0 4px', fontSize: '13px' }}>
@@ -90,8 +95,6 @@ function renderLine(line: string, j: number) {
       </p>
     )
   }
-
-  // Plain text
   return (
     <p key={j} style={{ margin: '4px 0', color: '#a0aec0', fontSize: '13px' }}>
       {clean}
@@ -101,7 +104,7 @@ function renderLine(line: string, j: number) {
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'analysis' | 'data'>('analysis')
-  const [activeSource, setActiveSource] = useState<'all' | 'amazon' | 'walmart'>('all')
+  const [activeSource, setActiveSource] = useState<'all' | 'amazon' | 'walmart' | 'target' | 'pfcandleco'>('all')
   const [activeCandleType, setActiveCandleType] = useState<'all' | 'jar-container' | 'multi-pack' | 'tea-light' | 'taper-pillar' | 'other'>('all')
   const [activeScentFilter, setActiveScentFilter] = useState<'all' | 'scented' | 'unscented'>('all')
   const [sortBy, setSortBy] = useState<'reviews_count' | 'stars' | 'price' | 'burn_hours' | 'burn_per_oz' | 'price_per_oz'>('reviews_count')
@@ -121,7 +124,7 @@ export default function Home() {
       const res = await fetch('/api/trigger-run', { method: 'POST' })
       const data = await res.json()
       if (data.success) {
-        setRunStatus('✅ Pipeline started! Data will refresh in ~3 minutes.')
+        setRunStatus('✅ Pipeline started! Data will refresh in ~5 minutes.')
       } else {
         setRunStatus('❌ Failed: ' + data.error)
       }
@@ -153,6 +156,8 @@ export default function Home() {
 
   const amazonProducts = allProducts.filter(p => p.source === 'amazon')
   const walmartProducts = allProducts.filter(p => p.source === 'walmart')
+  const targetProducts = allProducts.filter(p => p.source === 'target')
+  const pfProducts = allProducts.filter(p => p.source === 'pfcandleco')
   const jarCandles = amazonProducts.filter(p => p.candle_type === 'jar-container')
 
   const filteredProducts = allProducts
@@ -204,7 +209,7 @@ export default function Home() {
               🕯️ US Candle Market Intelligence
             </h1>
             <p style={{ color: '#8892a4', fontSize: '13px', margin: '4px 0 0' }}>
-              Amazon US & Walmart US · Live Data Pipeline
+              Amazon · Walmart · Target · P.F. Candle Co · Live Data Pipeline
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -218,18 +223,14 @@ export default function Home() {
                 {runStatus}
               </span>
             )}
-            <button
-              onClick={triggerRun}
-              disabled={running}
-              style={{
-                background: running ? '#1e2433' : 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
-                color: '#fff', border: 'none', borderRadius: '8px',
-                padding: '9px 18px', fontSize: '13px', fontWeight: '700',
-                cursor: running ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: 8,
-                transition: 'all 0.2s', opacity: running ? 0.6 : 1
-              }}
-            >
+            <button onClick={triggerRun} disabled={running} style={{
+              background: running ? '#1e2433' : 'linear-gradient(135deg, #3b82f6, #8b5cf6)',
+              color: '#fff', border: 'none', borderRadius: '8px',
+              padding: '9px 18px', fontSize: '13px', fontWeight: '700',
+              cursor: running ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', gap: 8,
+              transition: 'all 0.2s', opacity: running ? 0.6 : 1
+            }}>
               {running ? '⏳ Running...' : '▶ Run Now'}
             </button>
             <span style={{ background: '#2ecc71', color: '#fff', fontSize: '11px', padding: '4px 12px', borderRadius: '20px', fontWeight: '700', letterSpacing: '0.5px' }}>● LIVE</span>
@@ -240,11 +241,11 @@ export default function Home() {
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '28px 40px' }}>
 
         {/* ── STATS ROW ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '12px', marginBottom: '28px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '12px', marginBottom: '20px' }}>
           {[
-            { label: 'Products Tracked', value: allProducts.length.toString(), sub: `${amazonProducts.length} Amazon · ${walmartProducts.length} Walmart`, color: '#3b82f6' },
-            { label: 'Total Reviews', value: totalReviews.toLocaleString(), sub: 'Across all products', color: '#8b5cf6' },
-            { label: 'Avg Rating', value: avg(validStars).toFixed(1) + ' ⭐', sub: 'Combined platforms', color: '#f59e0b' },
+            { label: 'Products Tracked', value: allProducts.length.toString(), sub: `${amazonProducts.length} AMZ · ${walmartProducts.length} WMT · ${targetProducts.length} TGT · ${pfProducts.length} PF`, color: '#3b82f6' },
+            { label: 'Total Reviews', value: totalReviews.toLocaleString(), sub: 'Across all sources', color: '#8b5cf6' },
+            { label: 'Avg Rating', value: avg(validStars).toFixed(1) + ' ⭐', sub: 'Combined sources', color: '#f59e0b' },
             { label: 'Avg Price', value: '$' + avg(validPrices).toFixed(2), sub: 'All products', color: '#10b981' },
             { label: 'Avg Price/oz', value: validPricePerOz.length ? '$' + avg(validPricePerOz).toFixed(2) + '/oz' : 'N/A', sub: 'Amazon jar candles', color: '#f97316' },
             { label: 'Avg Burn Time', value: validBurnHz.length ? Math.round(avg(validBurnHz)) + ' hrs' : 'N/A', sub: 'Amazon data only', color: '#ef4444' },
@@ -263,6 +264,41 @@ export default function Home() {
               <p style={{ color: '#8892a4', fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 8px' }}>{m.label}</p>
               <p style={{ color: '#fff', fontSize: '18px', fontWeight: '800', margin: '0 0 4px' }}>{m.value}</p>
               <p style={{ color: '#8892a4', fontSize: '9px', margin: 0 }}>{m.sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ── SOURCE SUMMARY ROW ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '24px' }}>
+          {[
+            { source: 'amazon', icon: '📦', count: amazonProducts.length, avgPrice: avg(amazonProducts.filter(p => p.price).map(p => p.price)), color: '#ff9900' },
+            { source: 'walmart', icon: '🛒', count: walmartProducts.length, avgPrice: avg(walmartProducts.filter(p => p.price).map(p => p.price)), color: '#0071ce' },
+            { source: 'target', icon: '🎯', count: targetProducts.length, avgPrice: avg(targetProducts.filter(p => p.price).map(p => p.price)), color: '#cc0000' },
+            { source: 'pfcandleco', icon: '✨', count: pfProducts.length, avgPrice: avg(pfProducts.filter(p => p.price).map(p => p.price)), color: '#8b5cf6' },
+          ].map((s, i) => (
+            <div key={i} onClick={() => { setActiveTab('data'); setActiveSource(s.source as any) }}
+              style={{
+                background: 'linear-gradient(135deg, #1e2433 0%, #1a1f2e 100%)',
+                borderRadius: '10px', padding: '14px 16px',
+                border: `1px solid ${s.color}30`,
+                cursor: 'pointer', transition: 'all 0.2s',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = s.color + '30'; e.currentTarget.style.transform = 'translateY(0)' }}
+            >
+              <div>
+                <p style={{ color: '#8892a4', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 4px' }}>
+                  {s.icon} {s.source === 'pfcandleco' ? 'P.F. Candle Co' : s.source.charAt(0).toUpperCase() + s.source.slice(1)}
+                </p>
+                <p style={{ color: '#fff', fontSize: '20px', fontWeight: '800', margin: 0 }}>{s.count} products</p>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ color: '#8892a4', fontSize: '10px', margin: '0 0 2px' }}>Avg Price</p>
+                <p style={{ color: s.color, fontSize: '16px', fontWeight: '700', margin: 0 }}>
+                  {s.avgPrice > 0 ? '$' + s.avgPrice.toFixed(2) : 'N/A'}
+                </p>
+              </div>
             </div>
           ))}
         </div>
@@ -287,7 +323,6 @@ export default function Home() {
         ══════════════════════════════════════════════════════ */}
         {activeTab === 'analysis' && (
           <div>
-            {/* Section filter pills */}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '20px' }}>
               <button onClick={() => setAnalysisFilter('all')} style={{
                 padding: '6px 14px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600',
@@ -303,7 +338,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Analysis grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               {filteredSections.map((section, i) => (
                 <div key={i} style={{
@@ -330,7 +364,6 @@ export default function Home() {
         ══════════════════════════════════════════════════════ */}
         {activeTab === 'data' && (
           <div>
-            {/* Controls row */}
             <div style={{ display: 'flex', gap: 10, marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
 
               {/* Search */}
@@ -346,12 +379,25 @@ export default function Home() {
 
               {/* Source filter */}
               <div style={{ display: 'flex', gap: 4, background: '#1e2433', borderRadius: '8px', padding: '4px' }}>
-                {(['all', 'amazon', 'walmart'] as const).map(s => (
-                  <button key={s} onClick={() => setActiveSource(s)} style={{
-                    padding: '7px 14px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600',
-                    background: activeSource === s ? (s === 'amazon' ? '#ff9900' : s === 'walmart' ? '#0071ce' : '#3b82f6') : 'transparent',
-                    color: activeSource === s ? '#fff' : '#8892a4', transition: 'all 0.2s'
-                  }}>{s === 'all' ? '🌐 All' : s === 'amazon' ? '📦 Amazon' : '🛒 Walmart'}</button>
+                {([
+                  { key: 'all', label: '🌐 All' },
+                  { key: 'amazon', label: '📦 Amazon' },
+                  { key: 'walmart', label: '🛒 Walmart' },
+                  { key: 'target', label: '🎯 Target' },
+                  { key: 'pfcandleco', label: '✨ PF Candle' },
+                ] as const).map(s => (
+                  <button key={s.key} onClick={() => setActiveSource(s.key as any)} style={{
+                    padding: '7px 12px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600',
+                    background: activeSource === s.key
+                      ? s.key === 'amazon' ? '#ff9900'
+                        : s.key === 'walmart' ? '#0071ce'
+                          : s.key === 'target' ? '#cc0000'
+                            : s.key === 'pfcandleco' ? '#8b5cf6'
+                              : '#3b82f6'
+                      : 'transparent',
+                    color: activeSource === s.key ? '#fff' : '#8892a4',
+                    transition: 'all 0.2s'
+                  }}>{s.label}</button>
                 ))}
               </div>
 
@@ -360,7 +406,7 @@ export default function Home() {
                 {([
                   { key: 'all', label: 'All Types' },
                   { key: 'jar-container', label: '🫙 Jar' },
-                  { key: 'multi-pack', label: '🎁 Multi-Pack' },
+                  { key: 'multi-pack', label: '🎁 Pack' },
                   { key: 'tea-light', label: '🕯️ Tea Light' },
                   { key: 'taper-pillar', label: '🕍 Taper' },
                 ] as const).map(t => (
@@ -388,14 +434,10 @@ export default function Home() {
               </div>
 
               {/* Sort */}
-              <select
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value as any)}
-                style={{
-                  background: '#1e2433', border: '1px solid #2a2f3e', borderRadius: '8px',
-                  padding: '10px 14px', color: '#fff', fontSize: '13px', cursor: 'pointer', outline: 'none'
-                }}
-              >
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{
+                background: '#1e2433', border: '1px solid #2a2f3e', borderRadius: '8px',
+                padding: '10px 14px', color: '#fff', fontSize: '13px', cursor: 'pointer', outline: 'none'
+              }}>
                 <option value="reviews_count">Sort: Most Reviews</option>
                 <option value="stars">Sort: Highest Rated</option>
                 <option value="price">Sort: Highest Price</option>
@@ -411,114 +453,128 @@ export default function Home() {
 
             {/* Product grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
-              {filteredProducts.map((p) => (
-                <div key={p.id} onClick={() => setSelectedProduct(selectedProduct?.id === p.id ? null : p)}
-                  style={{
-                    background: selectedProduct?.id === p.id ? 'linear-gradient(135deg, #1e3a5f 0%, #1e2433 100%)' : 'linear-gradient(135deg, #1e2433 0%, #1a1f2e 100%)',
-                    borderRadius: '12px', padding: '16px',
-                    border: selectedProduct?.id === p.id ? '1px solid #3b82f6' : '1px solid #2a2f3e',
-                    cursor: 'pointer', transition: 'all 0.2s',
-                  }}
-                  onMouseEnter={e => { if (selectedProduct?.id !== p.id) e.currentTarget.style.borderColor = '#3b82f640' }}
-                  onMouseLeave={e => { if (selectedProduct?.id !== p.id) e.currentTarget.style.borderColor = '#2a2f3e' }}
-                >
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                    {p.image_url ? (
-                      <img src={p.image_url} alt="" style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: '8px', background: '#fff', flexShrink: 0, padding: 2 }} />
-                    ) : (
-                      <div style={{ width: 52, height: 52, borderRadius: '8px', background: '#2a2f3e', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🕯️</div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', gap: 5, marginBottom: 5, flexWrap: 'wrap' }}>
-                        <span style={{
-                          fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px',
-                          background: p.source === 'walmart' ? '#0071ce20' : '#ff990020',
-                          color: p.source === 'walmart' ? '#60a5fa' : '#fbbf24'
-                        }}>{p.source?.toUpperCase()}</span>
-                        {p.candle_type && (
-                          <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#8b5cf620', color: '#a78bfa' }}>
-                            {p.candle_type === 'jar-container' ? '🫙 Jar' : p.candle_type === 'multi-pack' ? '🎁 Pack' : p.candle_type === 'tea-light' ? '🕯️ Tea Light' : p.candle_type === 'taper-pillar' ? '🕍 Taper' : p.candle_type}
-                          </span>
-                        )}
-                        {p.is_scented === true && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#10b98120', color: '#34d399' }}>✨ Scented</span>}
-                        {p.is_scented === false && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#64748b20', color: '#94a3b8' }}>🤍 Unscented</span>}
-                        {p.burn_hours && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#ef444420', color: '#f87171' }}>🔥 {p.burn_hours}hrs</span>}
-                      </div>
-                      <p style={{ color: '#e2e8f0', fontSize: '12px', fontWeight: '600', margin: '0 0 4px', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
-                        {p.product_name}
-                      </p>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        {p.brand && <span style={{ color: '#60a5fa', fontSize: '11px', fontWeight: '600' }}>{p.brand}</span>}
-                        {p.scent_name && <span style={{ color: '#c084fc', fontSize: '11px' }}>🌸 {p.scent_name}</span>}
-                        {p.stars && <span style={{ color: '#fbbf24', fontSize: '11px' }}>⭐ {p.stars}</span>}
-                        {p.reviews_count && <span style={{ color: '#8892a4', fontSize: '11px' }}>{p.reviews_count.toLocaleString()} reviews</span>}
-                      </div>
-                    </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      {p.price && <p style={{ color: '#10b981', fontSize: '14px', fontWeight: '700', margin: 0 }}>${p.price}</p>}
-                      {p.price_per_oz && <p style={{ color: '#f97316', fontSize: '11px', margin: '2px 0 0' }}>${p.price_per_oz}/oz</p>}
-                      {p.burn_per_oz && <p style={{ color: '#06b6d4', fontSize: '11px', margin: '2px 0 0' }}>{p.burn_per_oz} hrs/oz</p>}
-                    </div>
-                  </div>
-
-                  {/* Expanded detail panel */}
-                  {selectedProduct?.id === p.id && (
-                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #2a2f3e' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
-                        {[
-                          { label: 'Candle Type', value: p.candle_type },
-                          { label: 'Scented', value: p.is_scented === true ? 'Yes ✨' : p.is_scented === false ? 'No 🤍' : 'Unknown' },
-                          { label: 'Scent', value: p.scent_name },
-                          { label: 'Color', value: p.color },
-                          { label: 'Shape', value: p.shape },
-                          { label: 'Wicks', value: p.wick_quantity },
-                          { label: 'Material', value: p.material_type },
-                          { label: 'Container', value: p.container_material },
-                          { label: 'Weight', value: p.weight_oz ? p.weight_oz + ' oz' : null },
-                          { label: 'Price/oz', value: p.price_per_oz ? '$' + p.price_per_oz : null },
-                          { label: 'Burn Time', value: p.burn_time },
-                          { label: 'Burn/oz', value: p.burn_per_oz ? p.burn_per_oz + ' hrs/oz' : null },
-                          { label: 'Availability', value: p.availability },
-                          { label: 'Sold By', value: p.sold_by },
-                          { label: 'Past Sales', value: p.past_sales },
-                          { label: 'Best Seller Rank', value: p.best_sellers_rank },
-                        ].filter(f => f.value).map((f, j) => (
-                          <div key={j} style={{ background: '#0f1117', borderRadius: '6px', padding: '8px 10px' }}>
-                            <p style={{ color: '#8892a4', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 2px' }}>{f.label}</p>
-                            <p style={{ color: '#e2e8f0', margin: 0, fontSize: '11px' }}>{f.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                      {p.review_summary && (
-                        <div style={{ marginTop: 8, background: '#0f1117', borderRadius: '6px', padding: '10px 12px' }}>
-                          <p style={{ color: '#8892a4', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 4px' }}>Review Summary</p>
-                          <p style={{ color: '#a0aec0', fontSize: '12px', margin: 0, lineHeight: 1.6 }}>{p.review_summary}</p>
-                        </div>
+              {filteredProducts.map((p) => {
+                const src = sourceConfig[p.source] || sourceConfig.amazon
+                return (
+                  <div key={p.id} onClick={() => setSelectedProduct(selectedProduct?.id === p.id ? null : p)}
+                    style={{
+                      background: selectedProduct?.id === p.id ? 'linear-gradient(135deg, #1e3a5f 0%, #1e2433 100%)' : 'linear-gradient(135deg, #1e2433 0%, #1a1f2e 100%)',
+                      borderRadius: '12px', padding: '16px',
+                      border: selectedProduct?.id === p.id ? '1px solid #3b82f6' : '1px solid #2a2f3e',
+                      cursor: 'pointer', transition: 'all 0.2s',
+                    }}
+                    onMouseEnter={e => { if (selectedProduct?.id !== p.id) e.currentTarget.style.borderColor = '#3b82f640' }}
+                    onMouseLeave={e => { if (selectedProduct?.id !== p.id) e.currentTarget.style.borderColor = '#2a2f3e' }}
+                  >
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                      {p.image_url ? (
+                        <img src={p.image_url} alt="" style={{ width: 52, height: 52, objectFit: 'contain', borderRadius: '8px', background: '#fff', flexShrink: 0, padding: 2 }} />
+                      ) : (
+                        <div style={{ width: 52, height: 52, borderRadius: '8px', background: '#2a2f3e', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🕯️</div>
                       )}
-                      <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                        {p.asin && p.source === 'amazon' && (
-                          <a href={`https://www.amazon.com/dp/${p.asin}`} target="_blank" rel="noopener noreferrer"
-                            style={{ background: '#ff9900', color: '#000', fontSize: '11px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none' }}>
-                            View on Amazon ↗
-                          </a>
-                        )}
-                        {p.source === 'walmart' && (
-                          <a href={`https://www.walmart.com/search?q=${encodeURIComponent(p.product_name)}`} target="_blank" rel="noopener noreferrer"
-                            style={{ background: '#0071ce', color: '#fff', fontSize: '11px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none' }}>
-                            Search on Walmart ↗
-                          </a>
-                        )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: 5, marginBottom: 5, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: src.bg, color: src.color }}>
+                            {src.label}
+                          </span>
+                          {p.candle_type && (
+                            <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#8b5cf620', color: '#a78bfa' }}>
+                              {p.candle_type === 'jar-container' ? '🫙 Jar' : p.candle_type === 'multi-pack' ? '🎁 Pack' : p.candle_type === 'tea-light' ? '🕯️ Tea Light' : p.candle_type === 'taper-pillar' ? '🕍 Taper' : p.candle_type}
+                            </span>
+                          )}
+                          {p.is_scented === true && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#10b98120', color: '#34d399' }}>✨ Scented</span>}
+                          {p.is_scented === false && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#64748b20', color: '#94a3b8' }}>🤍 Unscented</span>}
+                          {p.burn_hours && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#ef444420', color: '#f87171' }}>🔥 {p.burn_hours}hrs</span>}
+                        </div>
+                        <p style={{ color: '#e2e8f0', fontSize: '12px', fontWeight: '600', margin: '0 0 4px', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
+                          {p.product_name}
+                        </p>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {p.brand && <span style={{ color: '#60a5fa', fontSize: '11px', fontWeight: '600' }}>{p.brand}</span>}
+                          {p.scent_name && <span style={{ color: '#c084fc', fontSize: '11px' }}>🌸 {p.scent_name}</span>}
+                          {p.stars && <span style={{ color: '#fbbf24', fontSize: '11px' }}>⭐ {p.stars}</span>}
+                          {p.reviews_count > 0 && <span style={{ color: '#8892a4', fontSize: '11px' }}>{p.reviews_count?.toLocaleString()} reviews</span>}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        {p.price && <p style={{ color: '#10b981', fontSize: '14px', fontWeight: '700', margin: 0 }}>${p.price}</p>}
+                        {p.price_per_oz && <p style={{ color: '#f97316', fontSize: '11px', margin: '2px 0 0' }}>${p.price_per_oz}/oz</p>}
+                        {p.burn_per_oz && <p style={{ color: '#06b6d4', fontSize: '11px', margin: '2px 0 0' }}>{p.burn_per_oz} hrs/oz</p>}
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* Expanded detail panel */}
+                    {selectedProduct?.id === p.id && (
+                      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #2a2f3e' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
+                          {[
+                            { label: 'Source', value: src.label },
+                            { label: 'Candle Type', value: p.candle_type },
+                            { label: 'Scented', value: p.is_scented === true ? 'Yes ✨' : p.is_scented === false ? 'No 🤍' : 'Unknown' },
+                            { label: 'Scent', value: p.scent_name },
+                            { label: 'Color', value: p.color },
+                            { label: 'Shape', value: p.shape },
+                            { label: 'Wicks', value: p.wick_quantity },
+                            { label: 'Material', value: p.material_type },
+                            { label: 'Container', value: p.container_material },
+                            { label: 'Weight', value: p.weight_oz ? p.weight_oz + ' oz' : null },
+                            { label: 'Price/oz', value: p.price_per_oz ? '$' + p.price_per_oz : null },
+                            { label: 'Burn Time', value: p.burn_time },
+                            { label: 'Burn/oz', value: p.burn_per_oz ? p.burn_per_oz + ' hrs/oz' : null },
+                            { label: 'Availability', value: p.availability },
+                            { label: 'Sold By', value: p.sold_by },
+                            { label: 'Past Sales', value: p.past_sales },
+                            { label: 'Best Seller Rank', value: p.best_sellers_rank },
+                          ].filter(f => f.value).map((f, j) => (
+                            <div key={j} style={{ background: '#0f1117', borderRadius: '6px', padding: '8px 10px' }}>
+                              <p style={{ color: '#8892a4', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 2px' }}>{f.label}</p>
+                              <p style={{ color: '#e2e8f0', margin: 0, fontSize: '11px' }}>{f.value}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {p.review_summary && (
+                          <div style={{ marginTop: 8, background: '#0f1117', borderRadius: '6px', padding: '10px 12px' }}>
+                            <p style={{ color: '#8892a4', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', margin: '0 0 4px' }}>Review Summary</p>
+                            <p style={{ color: '#a0aec0', fontSize: '12px', margin: 0, lineHeight: 1.6 }}>{p.review_summary}</p>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                          {p.asin && p.source === 'amazon' && (
+                            <a href={`https://www.amazon.com/dp/${p.asin}`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#ff9900', color: '#000', fontSize: '11px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none' }}>
+                              View on Amazon ↗
+                            </a>
+                          )}
+                          {p.source === 'walmart' && (
+                            <a href={`https://www.walmart.com/search?q=${encodeURIComponent(p.product_name)}`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#0071ce', color: '#fff', fontSize: '11px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none' }}>
+                              Search on Walmart ↗
+                            </a>
+                          )}
+                          {p.source === 'target' && (
+                            <a href={`https://www.target.com/s?searchTerm=${encodeURIComponent(p.product_name)}`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#cc0000', color: '#fff', fontSize: '11px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none' }}>
+                              Search on Target ↗
+                            </a>
+                          )}
+                          {p.source === 'pfcandleco' && (
+                            <a href={`https://pfcandleco.com/collections/all`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#8b5cf6', color: '#fff', fontSize: '11px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none' }}>
+                              View on PF Candle Co ↗
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
 
         <p style={{ textAlign: 'center', color: '#4a5568', fontSize: '11px', marginTop: '32px' }}>
-          Powered by AI · Amazon US & Walmart US · Auto-refreshes every 12 hours
+          Powered by AI · Amazon · Walmart · Target · P.F. Candle Co · Auto-refreshes every 12 hours
         </p>
       </div>
 
