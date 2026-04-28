@@ -590,3 +590,27 @@ export default function Home() {
     </main>
   )
 }
+const [chatQuestion, setChatQuestion] = useState('')
+const [chatAnswer, setChatAnswer] = useState('')
+const [chatLoading, setChatLoading] = useState(false)
+const [chatHistory, setChatHistory] = useState<{q: string, a: string}[]>([])
+
+const askQuestion = async () => {
+  if (!chatQuestion.trim()) return
+  setChatLoading(true)
+  setChatAnswer('')
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: chatQuestion })
+    })
+    const data = await res.json()
+    setChatHistory(prev => [...prev, { q: chatQuestion, a: data.answer }])
+    setChatAnswer(data.answer)
+    setChatQuestion('')
+  } catch (e) {
+    setChatAnswer('Error getting answer.')
+  }
+  setChatLoading(false)
+}
