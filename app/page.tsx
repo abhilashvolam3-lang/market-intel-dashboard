@@ -116,6 +116,9 @@ export default function Home() {
   const [analysisFilter, setAnalysisFilter] = useState<string>('all')
   const [running, setRunning] = useState(false)
   const [runStatus, setRunStatus] = useState<string | null>(null)
+  const [chatQuestion, setChatQuestion] = useState('')
+  const [chatLoading, setChatLoading] = useState(false)
+  const [chatHistory, setChatHistory] = useState<{ q: string; a: string }[]>([])
 
   const triggerRun = async () => {
     setRunning(true)
@@ -132,6 +135,25 @@ export default function Home() {
       setRunStatus('❌ Network error')
     }
     setRunning(false)
+  }
+
+  const askQuestion = async () => {
+    if (!chatQuestion.trim()) return
+    setChatLoading(true)
+    const question = chatQuestion
+    setChatQuestion('')
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      })
+      const data = await res.json()
+      setChatHistory(prev => [...prev, { q: question, a: data.answer }])
+    } catch (e) {
+      setChatHistory(prev => [...prev, { q: question, a: 'Error getting answer.' }])
+    }
+    setChatLoading(false)
   }
 
   useEffect(() => {
@@ -318,6 +340,92 @@ export default function Home() {
           ))}
         </div>
 
+        {/* ── AI CHAT BAR ── */}
+        <div style={{
+          background: 'linear-gradient(135deg, #1e2433 0%, #1a1f2e 100%)',
+          borderRadius: '12px', padding: '20px', marginBottom: '24px',
+          border: '1px solid #2a2f3e'
+        }}>
+          <p style={{ color: '#8892a4', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 12px' }}>
+            🤖 Ask AI about your data
+          </p>
+
+          {/* Chat history */}
+          {chatHistory.length > 0 && (
+            <div style={{ marginBottom: '16px', maxHeight: '300px', overflowY: 'auto' }}>
+              {chatHistory.map((chat, i) => (
+                <div key={i} style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                    <span style={{ color: '#3b82f6', fontSize: '12px', fontWeight: '700', flexShrink: 0 }}>You:</span>
+                    <p style={{ color: '#e2e8f0', fontSize: '13px', margin: 0 }}>{chat.q}</p>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <span style={{ color: '#10b981', fontSize: '12px', fontWeight: '700', flexShrink: 0 }}>AI:</span>
+                    <p style={{ color: '#a0aec0', fontSize: '13px', margin: 0, lineHeight: 1.7 }}>{chat.a}</p>
+                  </div>
+                  {i < chatHistory.length - 1 && <div style={{ borderTop: '1px solid #2a2f3e', margin: '12px 0' }} />}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Input row */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <input
+              placeholder="e.g. Which candle has best burn efficiency? Compare Yankee vs WoodWick..."
+              value={chatQuestion}
+              onChange={e => setChatQuestion(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && askQuestion()}
+              style={{
+                flex: 1, background: '#0f1117', border: '1px solid #2a2f3e',
+                borderRadius: '8px', padding: '12px 16px', color: '#fff',
+                fontSize: '13px', outline: 'none'
+              }}
+            />
+            <button
+              onClick={askQuestion}
+              disabled={chatLoading || !chatQuestion.trim()}
+              style={{
+                background: chatLoading ? '#1e2433' : 'linear-gradient(135deg, #10b981, #3b82f6)',
+                color: '#fff', border: 'none', borderRadius: '8px',
+                padding: '12px 20px', fontSize: '13px', fontWeight: '700',
+                cursor: chatLoading ? 'not-allowed' : 'pointer',
+                opacity: chatLoading ? 0.6 : 1, whiteSpace: 'nowrap'
+              }}
+            >
+              {chatLoading ? '⏳ Thinking...' : '✨ Ask'}
+            </button>
+            {chatHistory.length > 0 && (
+              <button
+                onClick={() => setChatHistory([])}
+                style={{
+                  background: '#1e2433', color: '#8892a4', border: '1px solid #2a2f3e',
+                  borderRadius: '8px', padding: '12px 14px', fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          {/* Example questions */}
+          <div style={{ display: 'flex', gap: 8, marginTop: '10px', flexWrap: 'wrap' }}>
+            {[
+              'Best burn efficiency candle?',
+              'Cheapest price per oz?',
+              'Compare Yankee vs WoodWick',
+              'Best rated Walmart candle?',
+              'Which scent has most reviews?',
+            ].map(q => (
+              <button key={q} onClick={() => setChatQuestion(q)} style={{
+                background: '#0f1117', border: '1px solid #2a2f3e', borderRadius: '20px',
+                padding: '4px 12px', color: '#8892a4', fontSize: '11px', cursor: 'pointer'
+              }}>{q}</button>
+            ))}
+          </div>
+        </div>
+
         {/* ══════════════════════════════════════════════════════
             TAB 1 — AI ANALYSIS
         ══════════════════════════════════════════════════════ */}
@@ -365,8 +473,6 @@ export default function Home() {
         {activeTab === 'data' && (
           <div>
             <div style={{ display: 'flex', gap: 10, marginBottom: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
-
-              {/* Search */}
               <input
                 placeholder="🔍 Search product, brand, scent..."
                 value={searchTerm}
@@ -377,7 +483,6 @@ export default function Home() {
                 }}
               />
 
-              {/* Source filter */}
               <div style={{ display: 'flex', gap: 4, background: '#1e2433', borderRadius: '8px', padding: '4px' }}>
                 {([
                   { key: 'all', label: '🌐 All' },
@@ -401,7 +506,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Candle type filter */}
               <div style={{ display: 'flex', gap: 4, background: '#1e2433', borderRadius: '8px', padding: '4px' }}>
                 {([
                   { key: 'all', label: 'All Types' },
@@ -418,7 +522,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Scent filter */}
               <div style={{ display: 'flex', gap: 4, background: '#1e2433', borderRadius: '8px', padding: '4px' }}>
                 {([
                   { key: 'all', label: '🌸 All' },
@@ -433,7 +536,6 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Sort */}
               <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{
                 background: '#1e2433', border: '1px solid #2a2f3e', borderRadius: '8px',
                 padding: '10px 14px', color: '#fff', fontSize: '13px', cursor: 'pointer', outline: 'none'
@@ -451,7 +553,6 @@ export default function Home() {
               </span>
             </div>
 
-            {/* Product grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
               {filteredProducts.map((p) => {
                 const src = sourceConfig[p.source] || sourceConfig.amazon
@@ -503,7 +604,6 @@ export default function Home() {
                       </div>
                     </div>
 
-                    {/* Expanded detail panel */}
                     {selectedProduct?.id === p.id && (
                       <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #2a2f3e' }}>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '12px' }}>
@@ -558,7 +658,7 @@ export default function Home() {
                             </a>
                           )}
                           {p.source === 'pfcandleco' && (
-                            <a href={`https://pfcandleco.com/collections/all`} target="_blank" rel="noopener noreferrer"
+                            <a href="https://pfcandleco.com/collections/all" target="_blank" rel="noopener noreferrer"
                               style={{ background: '#8b5cf6', color: '#fff', fontSize: '11px', fontWeight: '700', padding: '6px 14px', borderRadius: '6px', textDecoration: 'none' }}>
                               View on PF Candle Co ↗
                             </a>
@@ -589,28 +689,4 @@ export default function Home() {
       `}</style>
     </main>
   )
-}
-const [chatQuestion, setChatQuestion] = useState('')
-const [chatAnswer, setChatAnswer] = useState('')
-const [chatLoading, setChatLoading] = useState(false)
-const [chatHistory, setChatHistory] = useState<{q: string, a: string}[]>([])
-
-const askQuestion = async () => {
-  if (!chatQuestion.trim()) return
-  setChatLoading(true)
-  setChatAnswer('')
-  try {
-    const res = await fetch('/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: chatQuestion })
-    })
-    const data = await res.json()
-    setChatHistory(prev => [...prev, { q: chatQuestion, a: data.answer }])
-    setChatAnswer(data.answer)
-    setChatQuestion('')
-  } catch (e) {
-    setChatAnswer('Error getting answer.')
-  }
-  setChatLoading(false)
 }
