@@ -35,6 +35,68 @@ const sectionIcons: Record<string, string> = {
   'Performance Metrics': '📊',
   'Customer Sentiment (Amazon scented jar candles)': '💬',
   'Growth Opportunities': '🚀',
+  'Fragrance Analysis': '🌸',
+  'Brand Landscape': '🏷️',
+  'Pricing Intelligence': '💰',
+  'Product Format & Design': '📦',
+  'Burn Time Efficiency': '🕯️',
+  'Customer Sentiment': '💬',
+  'Amazon vs Walmart Comparison': '🛒',
+  'Burn Time Efficiency (Amazon data only)': '🔥',
+  'Product Format & Design (Amazon data)': '📦',
+  'Growth Opportunities (combined insight)': '🚀',
+}
+
+function renderLine(line: string, j: number) {
+  const clean = line.replace(/\s+/g, ' ').trim()
+  if (!clean) return null
+
+  // Numbered items
+  if (clean.match(/^\d+\.\s/)) {
+    return (
+      <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '8px 0 4px', fontSize: '13px' }}>
+        {clean}
+      </p>
+    )
+  }
+
+  // * subheadings
+  if (clean.startsWith('* ')) {
+    return (
+      <p key={j} style={{
+        fontWeight: '600', color: '#cbd5e1', margin: '12px 0 6px',
+        fontSize: '12px', borderLeft: '2px solid #3b82f6', paddingLeft: '8px'
+      }}>
+        {clean.replace(/^\*\s/, '')}
+      </p>
+    )
+  }
+
+  // + or - or • bullet points
+  if (clean.startsWith('+ ') || clean.startsWith('- ') || clean.startsWith('• ')) {
+    return (
+      <div key={j} style={{ display: 'flex', gap: '8px', margin: '4px 0', paddingLeft: '8px' }}>
+        <span style={{ color: '#3b82f6', flexShrink: 0, marginTop: '2px' }}>▸</span>
+        <span style={{ color: '#a0aec0', fontSize: '13px' }}>{clean.replace(/^[+\-•]\s/, '')}</span>
+      </div>
+    )
+  }
+
+  // ## subheadings inside sections
+  if (clean.match(/^#{1,3}\s/)) {
+    return (
+      <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '10px 0 4px', fontSize: '13px' }}>
+        {clean.replace(/^#{1,3}\s/, '')}
+      </p>
+    )
+  }
+
+  // Plain text
+  return (
+    <p key={j} style={{ margin: '4px 0', color: '#a0aec0', fontSize: '13px' }}>
+      {clean}
+    </p>
+  )
 }
 
 export default function Home() {
@@ -193,11 +255,10 @@ export default function Home() {
               borderRadius: '12px', padding: '16px 14px',
               border: `1px solid ${m.color}30`,
               borderTop: `3px solid ${m.color}`,
-              transition: 'transform 0.2s',
-              cursor: 'default'
+              transition: 'transform 0.2s', cursor: 'default'
             }}
-            onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
-            onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+              onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
+              onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
             >
               <p style={{ color: '#8892a4', fontSize: '9px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.8px', margin: '0 0 8px' }}>{m.label}</p>
               <p style={{ color: '#fff', fontSize: '18px', fontWeight: '800', margin: '0 0 4px' }}>{m.value}</p>
@@ -255,21 +316,8 @@ export default function Home() {
                     <span style={{ fontSize: '18px' }}>{sectionIcons[section.title] || '📌'}</span>
                     {section.title}
                   </h3>
-                  <div style={{ fontSize: '13px', color: '#a0aec0', lineHeight: '1.8' }}>
-                    {section.content.map((line, j) => {
-                      if (line.match(/^\d+\.\s/) || line.match(/^#{1,3}\s/)) {
-                        return <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '10px 0 4px' }}>{line.replace(/^#{1,3}\s/, '')}</p>
-                      }
-                      if (line.startsWith('- ') || line.startsWith('• ')) {
-                        return (
-                          <div key={j} style={{ display: 'flex', gap: '8px', margin: '6px 0', paddingLeft: '4px' }}>
-                            <span style={{ color: '#3b82f6', flexShrink: 0, marginTop: '2px' }}>▸</span>
-                            <span>{line.replace(/^[-•]\s/, '')}</span>
-                          </div>
-                        )
-                      }
-                      return <p key={j} style={{ margin: '4px 0' }}>{line}</p>
-                    })}
+                  <div style={{ lineHeight: '1.8' }}>
+                    {section.content.map((line, j) => renderLine(line, j))}
                   </div>
                 </div>
               ))}
@@ -382,22 +430,18 @@ export default function Home() {
                     )}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', gap: 5, marginBottom: 5, flexWrap: 'wrap' }}>
-                        {/* Source badge */}
                         <span style={{
                           fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px',
                           background: p.source === 'walmart' ? '#0071ce20' : '#ff990020',
                           color: p.source === 'walmart' ? '#60a5fa' : '#fbbf24'
                         }}>{p.source?.toUpperCase()}</span>
-                        {/* Candle type badge */}
                         {p.candle_type && (
                           <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#8b5cf620', color: '#a78bfa' }}>
                             {p.candle_type === 'jar-container' ? '🫙 Jar' : p.candle_type === 'multi-pack' ? '🎁 Pack' : p.candle_type === 'tea-light' ? '🕯️ Tea Light' : p.candle_type === 'taper-pillar' ? '🕍 Taper' : p.candle_type}
                           </span>
                         )}
-                        {/* Scented badge */}
                         {p.is_scented === true && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#10b98120', color: '#34d399' }}>✨ Scented</span>}
                         {p.is_scented === false && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#64748b20', color: '#94a3b8' }}>🤍 Unscented</span>}
-                        {/* Burn hours badge */}
                         {p.burn_hours && <span style={{ fontSize: '10px', fontWeight: '700', padding: '2px 7px', borderRadius: '4px', background: '#ef444420', color: '#f87171' }}>🔥 {p.burn_hours}hrs</span>}
                       </div>
                       <p style={{ color: '#e2e8f0', fontSize: '12px', fontWeight: '600', margin: '0 0 4px', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any }}>
