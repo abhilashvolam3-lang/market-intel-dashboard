@@ -45,18 +45,26 @@ function renderLine(line: string, j: number) {
 }
 
 // ─── constants ──────────────────────────────────────────────
-const SOURCE_CONFIG: Record<string, { color: string; bg: string; label: string; icon: string; shopUrl: string }> = {
-  amazon:    { color: '#fbbf24', bg: '#ff990020', label: 'AMAZON',    icon: '📦', shopUrl: 'https://www.amazon.com/dp/' },
-  walmart:   { color: '#60a5fa', bg: '#0071ce20', label: 'WALMART',   icon: '🛒', shopUrl: 'https://www.walmart.com/search?q=' },
-  target:    { color: '#f87171', bg: '#cc000020', label: 'TARGET',    icon: '🎯', shopUrl: 'https://www.target.com/s?searchTerm=' },
-  pfcandleco:{ color: '#a78bfa', bg: '#8b5cf620', label: 'PF CANDLE', icon: '✨', shopUrl: 'https://pfcandleco.com/collections/all' },
-  asda:      { color: '#34d399', bg: '#10b98120', label: 'ASDA',      icon: '🛍️', shopUrl: 'https://groceries.asda.com/search/' },
-  primark:   { color: '#f9a8d4', bg: '#ec489920', label: 'PRIMARK',   icon: '👜', shopUrl: 'https://www.primark.com/en-gb/search?q=' },
+const SOURCE_CONFIG: Record<string, { color: string; bg: string; label: string; icon: string; shopUrl: string; tier: string }> = {
+  amazon:    { color: '#fbbf24', bg: '#ff990020', label: 'AMAZON',     icon: '📦', shopUrl: 'https://www.amazon.com/dp/',                          tier: 'Mass Market' },
+  pfcandleco:{ color: '#a78bfa', bg: '#8b5cf620', label: 'PF CANDLE',  icon: '✨', shopUrl: 'https://pfcandleco.com/collections/all',              tier: 'Premium Indie' },
+  homesick:  { color: '#f97316', bg: '#f9731620', label: 'HOMESICK',   icon: '🏠', shopUrl: 'https://homesick.com/collections/candles',            tier: 'Mid-Premium' },
+  paddywax:  { color: '#10b981', bg: '#10b98120', label: 'PADDYWAX',   icon: '🕯️', shopUrl: 'https://paddywax.com/collections/candles',           tier: 'Artisan' },
+  otherland: { color: '#ec4899', bg: '#ec489920', label: 'OTHERLAND',  icon: '🌿', shopUrl: 'https://otherland.com/collections/candles',           tier: 'Premium Indie' },
+  boysmells: { color: '#8b5cf6', bg: '#8b5cf620', label: 'BOY SMELLS', icon: '🌸', shopUrl: 'https://boysmells.com/collections/candles',           tier: 'Luxury' },
+  byredo:    { color: '#60a5fa', bg: '#60a5fa20', label: 'BYREDO',     icon: '💎', shopUrl: 'https://www.byredo.com/collections/candles',          tier: 'Ultra-Luxury' },
+  keap:      { color: '#34d399', bg: '#34d39920', label: 'KEAP',       icon: '🌱', shopUrl: 'https://keapcandles.com/collections/candles',         tier: 'Eco' },
 }
 
 const SOURCE_DISPLAY_NAMES: Record<string, string> = {
-  amazon: 'Amazon', walmart: 'Walmart', target: 'Target',
-  pfcandleco: 'P.F. Candle Co', asda: 'ASDA', primark: 'Primark',
+  amazon:    'Amazon',
+  pfcandleco:'P.F. Candle Co',
+  homesick:  'Homesick',
+  paddywax:  'Paddywax',
+  otherland: 'Otherland',
+  boysmells: 'Boy Smells',
+  byredo:    'Byredo',
+  keap:      'Keap',
 }
 
 const SECTION_ICONS: Record<string, string> = {
@@ -64,7 +72,10 @@ const SECTION_ICONS: Record<string, string> = {
   'Multi-Pack & Gift Sets (Amazon)': '🎁',
   'Multi-Pack & Gift Sets Analysis (Amazon)': '🎁',
   'P.F. Candle Co Analysis (Premium Indie)': '✨',
-  'Mass Market Retail Comparison (Walmart vs Target)': '🛒',
+  'Mass-Indie Brand Comparison (Homesick vs Paddywax)': '🏠',
+  'Premium Indie Comparison (Otherland vs Boy Smells)': '🌿',
+  'Ultra-Luxury Analysis (Byredo)': '💎',
+  'Cross-Tier Price Intelligence': '💰',
   'Cross-Platform Price Intelligence': '💰',
   'Brand Landscape (All Sources)': '🏷️',
   'Performance Metrics': '📊',
@@ -73,8 +84,8 @@ const SECTION_ICONS: Record<string, string> = {
   'Growth Opportunities': '🚀',
   'Unscented Candles Analysis (Amazon)': '🤍',
   'Brand Landscape (Amazon)': '🏷️',
-  'Walmart Scented Candles Analysis': '🛒',
-  'Amazon vs Walmart Comparison (Scented Candles only)': '⚖️',
+  'Mass Market Retail Comparison (Walmart vs Target)': '🛒',
+  'UK Market Analysis (ASDA vs Primark)': '🇬🇧',
   'Fragrance Analysis': '🌸',
   'Brand Landscape': '🏷️',
   'Pricing Intelligence': '💰',
@@ -86,7 +97,7 @@ const SECTION_ICONS: Record<string, string> = {
   'Amazon vs Walmart Comparison': '🛒',
 }
 
-type SourceKey = 'all' | 'amazon' | 'walmart' | 'target' | 'pfcandleco' | 'asda' | 'primark'
+type SourceKey = 'all' | 'amazon' | 'pfcandleco' | 'homesick' | 'paddywax' | 'otherland' | 'boysmells' | 'byredo' | 'keap'
 type CandleType = 'all' | 'jar-container' | 'multi-pack' | 'tea-light' | 'taper-pillar' | 'other'
 type ScentFilter = 'all' | 'scented' | 'unscented'
 type SortKey = 'reviews_count' | 'stars' | 'price' | 'burn_hours' | 'burn_per_oz' | 'price_per_oz'
@@ -169,13 +180,15 @@ export default function Home() {
 
   // ── derived data ─────────────────────────────────────────
   const bySource = (src: string) => allProducts.filter(p => p.source === src)
-  const amazonProducts   = bySource('amazon')
-  const walmartProducts  = bySource('walmart')
-  const targetProducts   = bySource('target')
-  const pfProducts       = bySource('pfcandleco')
-  const asdaProducts     = bySource('asda')
-  const primarkProducts  = bySource('primark')
-  const jarCandles       = amazonProducts.filter(p => p.candle_type === 'jar-container')
+  const amazonProducts    = bySource('amazon')
+  const pfProducts        = bySource('pfcandleco')
+  const homesickProducts  = bySource('homesick')
+  const paddywaxProducts  = bySource('paddywax')
+  const otherlandProducts = bySource('otherland')
+  const boysmellsProducts = bySource('boysmells')
+  const byredoProducts    = bySource('byredo')
+  const keapProducts      = bySource('keap')
+  const jarCandles        = amazonProducts.filter(p => p.candle_type === 'jar-container')
 
   const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
   const totalReviews    = allProducts.reduce((a, b) => a + (b.reviews_count || 0), 0)
@@ -242,7 +255,7 @@ export default function Home() {
               🕯️ US Candle Market Intelligence
             </h1>
             <p style={{ color: '#8892a4', fontSize: 12, margin: '3px 0 0' }}>
-              Amazon · Walmart · Target · P.F. Candle Co · ASDA · Primark · Live Pipeline
+              Amazon · P.F. Candle Co · Homesick · Paddywax · Otherland · Boy Smells · Byredo · Keap · Live Pipeline
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -272,7 +285,7 @@ export default function Home() {
         {/* ════════════════════ KPI ROW ════════════════════ */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 10, marginBottom: 16 }}>
           {[
-            { label: 'Products Tracked', value: allProducts.length.toString(), sub: `${amazonProducts.length} AMZ · ${walmartProducts.length} WMT · ${targetProducts.length} TGT · ${pfProducts.length} PF · ${asdaProducts.length} ASDA · ${primarkProducts.length} Primark`, color: '#3b82f6' },
+            { label: 'Products Tracked', value: allProducts.length.toString(), sub: `${amazonProducts.length} AMZ · ${pfProducts.length} PF · ${homesickProducts.length} HS · ${paddywaxProducts.length} PW · ${otherlandProducts.length} OL · ${boysmellsProducts.length} BS · ${byredoProducts.length} BY · ${keapProducts.length} KP`, color: '#3b82f6' },
             { label: 'Total Reviews',    value: totalReviews.toLocaleString(), sub: 'Across all sources', color: '#8b5cf6' },
             { label: 'Avg Rating',       value: avg(validStars).toFixed(1) + ' ⭐', sub: 'Combined sources', color: '#f59e0b' },
             { label: 'Avg Price',        value: '$' + avg(validPrices).toFixed(2), sub: 'All products', color: '#10b981' },
@@ -291,14 +304,12 @@ export default function Home() {
         </div>
 
         {/* ════════════════════ SOURCE CARDS ════════════════════ */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 10, marginBottom: 22 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 10 }}>
           {([
             { src: 'amazon',    products: amazonProducts },
-            { src: 'walmart',   products: walmartProducts },
-            { src: 'target',    products: targetProducts },
             { src: 'pfcandleco',products: pfProducts },
-            { src: 'asda',      products: asdaProducts },
-            { src: 'primark',   products: primarkProducts },
+            { src: 'homesick',  products: homesickProducts },
+            { src: 'paddywax',  products: paddywaxProducts },
           ] as const).map(({ src, products }) => {
             const cfg = SOURCE_CONFIG[src]
             const avgP = avg(products.filter(p => p.price).map(p => p.price))
@@ -309,9 +320,38 @@ export default function Home() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = cfg.color; e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = cfg.color + '25'; e.currentTarget.style.transform = 'translateY(0)' }}
               >
-                <p style={{ color: '#8892a4', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', margin: '0 0 3px' }}>
+                <p style={{ color: '#8892a4', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', margin: '0 0 2px' }}>
                   {cfg.icon} {SOURCE_DISPLAY_NAMES[src]}
                 </p>
+                <p style={{ color: '#6b7280', fontSize: 9, margin: '0 0 4px' }}>{cfg.tier}</p>
+                <p style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 2px' }}>{products.length}</p>
+                <p style={{ color: cfg.color, fontSize: 13, fontWeight: 700, margin: 0 }}>
+                  {avgP > 0 ? '$' + avgP.toFixed(2) : 'N/A'}
+                </p>
+              </div>
+            )
+          })}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 22 }}>
+          {([
+            { src: 'otherland', products: otherlandProducts },
+            { src: 'boysmells', products: boysmellsProducts },
+            { src: 'byredo',    products: byredoProducts },
+            { src: 'keap',      products: keapProducts },
+          ] as const).map(({ src, products }) => {
+            const cfg = SOURCE_CONFIG[src]
+            const avgP = avg(products.filter(p => p.price).map(p => p.price))
+            return (
+              <div key={src}
+                onClick={() => { setActiveTab('data'); setActiveSource(src) }}
+                style={{ ...card, padding: '12px 14px', border: `1px solid ${cfg.color}25`, cursor: 'pointer', transition: 'all .2s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = cfg.color; e.currentTarget.style.transform = 'translateY(-1px)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = cfg.color + '25'; e.currentTarget.style.transform = 'translateY(0)' }}
+              >
+                <p style={{ color: '#8892a4', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', margin: '0 0 2px' }}>
+                  {cfg.icon} {SOURCE_DISPLAY_NAMES[src]}
+                </p>
+                <p style={{ color: '#6b7280', fontSize: 9, margin: '0 0 4px' }}>{cfg.tier}</p>
                 <p style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 2px' }}>{products.length}</p>
                 <p style={{ color: cfg.color, fontSize: 13, fontWeight: 700, margin: 0 }}>
                   {avgP > 0 ? '$' + avgP.toFixed(2) : 'N/A'}
@@ -487,19 +527,23 @@ export default function Home() {
               />
 
               {/* Source filter */}
-              <div style={{ display: 'flex', gap: 3, background: '#1e2433', borderRadius: 8, padding: 3 }}>
+              <div style={{ display: 'flex', gap: 3, background: '#1e2433', borderRadius: 8, padding: 3, flexWrap: 'wrap' }}>
                 {([
-                  { key: 'all', label: '🌐 All' },
+                  { key: 'all',       label: '🌐 All' },
                   { key: 'amazon',    label: '📦 Amazon' },
-                  { key: 'walmart',   label: '🛒 Walmart' },
-                  { key: 'target',    label: '🎯 Target' },
-                  { key: 'pfcandleco',label: '✨ PF' },
-                  { key: 'asda',      label: '🛍️ ASDA' },
-                  { key: 'primark',   label: '👜 Primark' },
+                  { key: 'pfcandleco',label: '✨ PF Candle' },
+                  { key: 'homesick',  label: '🏠 Homesick' },
+                  { key: 'paddywax',  label: '🕯️ Paddywax' },
+                  { key: 'otherland', label: '🌿 Otherland' },
+                  { key: 'boysmells', label: '🌸 Boy Smells' },
+                  { key: 'byredo',    label: '💎 Byredo' },
+                  { key: 'keap',      label: '🌱 Keap' },
                 ] as const).map(s => (
                   <button key={s.key} onClick={() => setActiveSource(s.key)} style={pill(activeSource === s.key,
-                    s.key === 'amazon' ? '#ff9900' : s.key === 'walmart' ? '#0071ce' : s.key === 'target' ? '#cc0000' :
-                    s.key === 'pfcandleco' ? '#8b5cf6' : s.key === 'asda' ? '#10b981' : s.key === 'primark' ? '#ec4899' : '#3b82f6'
+                    s.key === 'amazon' ? '#ff9900' : s.key === 'pfcandleco' ? '#8b5cf6' :
+                    s.key === 'homesick' ? '#f97316' : s.key === 'paddywax' ? '#10b981' :
+                    s.key === 'otherland' ? '#ec4899' : s.key === 'boysmells' ? '#8b5cf6' :
+                    s.key === 'byredo' ? '#60a5fa' : s.key === 'keap' ? '#34d399' : '#3b82f6'
                   )}>{s.label}</button>
                 ))}
               </div>
@@ -634,22 +678,10 @@ export default function Home() {
                         )}
                         {/* Store links */}
                         <div style={{ display: 'flex', gap: 7, marginTop: 9, flexWrap: 'wrap' }}>
-                          {p.source === 'amazon' && p.asin && (
+                          {p.source === 'amazon' && p.asin && !p.asin.startsWith('pf_') && (
                             <a href={`https://www.amazon.com/dp/${p.asin}`} target="_blank" rel="noopener noreferrer"
                               style={{ background: '#ff9900', color: '#000', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
                               Amazon ↗
-                            </a>
-                          )}
-                          {p.source === 'walmart' && (
-                            <a href={`https://www.walmart.com/search?q=${encodeURIComponent(p.product_name || '')}`} target="_blank" rel="noopener noreferrer"
-                              style={{ background: '#0071ce', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
-                              Walmart ↗
-                            </a>
-                          )}
-                          {p.source === 'target' && (
-                            <a href={`https://www.target.com/s?searchTerm=${encodeURIComponent(p.product_name || '')}`} target="_blank" rel="noopener noreferrer"
-                              style={{ background: '#cc0000', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
-                              Target ↗
                             </a>
                           )}
                           {p.source === 'pfcandleco' && (
@@ -658,16 +690,40 @@ export default function Home() {
                               PF Candle Co ↗
                             </a>
                           )}
-                          {p.source === 'asda' && (
-                            <a href={`https://groceries.asda.com/search/${encodeURIComponent(p.product_name || '')}`} target="_blank" rel="noopener noreferrer"
-                              style={{ background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
-                              ASDA ↗
+                          {p.source === 'homesick' && (
+                            <a href={`https://homesick.com/collections/candles`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#f97316', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
+                              Homesick ↗
                             </a>
                           )}
-                          {p.source === 'primark' && (
-                            <a href={`https://www.primark.com/en-gb/search?q=${encodeURIComponent(p.product_name || '')}`} target="_blank" rel="noopener noreferrer"
+                          {p.source === 'paddywax' && (
+                            <a href={`https://paddywax.com/collections/candles`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#10b981', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
+                              Paddywax ↗
+                            </a>
+                          )}
+                          {p.source === 'otherland' && (
+                            <a href={`https://otherland.com/collections/candles`} target="_blank" rel="noopener noreferrer"
                               style={{ background: '#ec4899', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
-                              Primark ↗
+                              Otherland ↗
+                            </a>
+                          )}
+                          {p.source === 'boysmells' && (
+                            <a href={`https://boysmells.com/collections/candles`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#8b5cf6', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
+                              Boy Smells ↗
+                            </a>
+                          )}
+                          {p.source === 'byredo' && (
+                            <a href={`https://www.byredo.com/collections/candles`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#60a5fa', color: '#fff', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
+                              Byredo ↗
+                            </a>
+                          )}
+                          {p.source === 'keap' && (
+                            <a href={`https://keapcandles.com/collections/candles`} target="_blank" rel="noopener noreferrer"
+                              style={{ background: '#34d399', color: '#000', fontSize: 11, fontWeight: 700, padding: '5px 12px', borderRadius: 6, textDecoration: 'none' }}>
+                              Keap ↗
                             </a>
                           )}
                         </div>
@@ -687,7 +743,7 @@ export default function Home() {
         )}
 
         <p style={{ textAlign: 'center', color: '#4a5568', fontSize: 11, marginTop: 32 }}>
-          Powered by AI · Amazon · Walmart · Target · P.F. Candle Co · ASDA · Primark · Auto-refreshes every 12 hours
+          Powered by AI · Amazon · P.F. Candle Co · Homesick · Paddywax · Otherland · Boy Smells · Byredo · Keap · Auto-refreshes every 12 hours
         </p>
       </div>
 
