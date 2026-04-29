@@ -10,12 +10,69 @@ export async function POST(req: Request) {
   try {
     const { question } = await req.json()
 
+    // Fetch products
     const { data: products } = await supabase
       .from('market_insights')
       .select('product_name, brand, price, stars, reviews_count, burn_hours, burn_per_oz, price_per_oz, weight_oz, scent_name, candle_type, is_scented, source, wick_quantity, material_type')
       .order('reviews_count', { ascending: false })
       .limit(200)
 
+    // Build per-source data quality report
+    const sources: Record<string, {
+      count: number
+      withPrice: number
+      withStars: number
+      withBrand: number
+      withBurnHours: number
+      withBurnPerOz: number
+      withPricePerOz: number
+      withScent: number
+      withWicks: number
+      withMaterial: number
+      withReviews: number
+    }> = {}
+
+    for (const p of (products || [])) {
+      const s = p.source || 'unknown'
+      if (!sources[s]) {
+        sources[s] = {
+          count: 0, withPrice: 0, withStars: 0, withBrand: 0,
+          withBurnHours: 0, withBurnPerOz: 0, withPricePerOz: 0,
+          withScent: 0, withWicks: 0, withMaterial: 0, withReviews: 0
+        }
+      }
+      sources[s].count++
+      if (p.price) sources[s].withPrice++
+      if (p.stars) sources[s].withStars++
+      if (p.brand) sources[s].withBrand++
+      if (p.burn_hours) sources[s].withBurnHours++
+      if (p.burn_per_oz) sources[s].withBurnPerOz++
+      if (p.price_per_oz) sources[s].withPricePerOz++
+      if (p.scent_name) sources[s].withScent++
+      if (p.wick_quantity) sources[s].withWicks++
+      if (p.material_type) sources[s].withMaterial++
+      if (p.reviews_count) sources[s].withReviews++
+    }
+
+    // Build data quality summary for prompt
+    const dataQualitySummary = Object.entries(sources).map(([source, stats]) => {
+      const pct = (n: number) => Math.round((n / stats.count) * 100) + '%'
+      return (
+        "SOURCE: " + source.toUpperCase() + " (" + stats.count + " products)\n" +
+        "  Price: " + pct(stats.withPrice) +
+        " | Stars: " + pct(stats.withStars) +
+        " | Reviews: " + pct(stats.withReviews) +
+        " | Brand: " + pct(stats.withBrand) + "\n" +
+        "  Burn Hours: " + pct(stats.withBurnHours) +
+        " | Burn/oz: " + pct(stats.withBurnPerOz) +
+        " | Price/oz: " + pct(stats.withPricePerOz) + "\n" +
+        "  Scent: " + pct(stats.withScent) +
+        " | Wicks: " + pct(stats.withWicks) +
+        " | Material: " + pct(stats.withMaterial)
+      )
+    }).join('\n\n')
+
+    // Build product context
     const productContext = (products || []).map(p =>
       "- " + (p.product_name || "") +
       " | Brand: " + (p.brand || "unknown") +
@@ -33,17 +90,22 @@ export async function POST(req: Request) {
       " | Material: " + (p.material_type || "unknown")
     ).join('\n')
 
-    const prompt = `You are a strict candle market data analyst. Your job is to answer questions using ONLY the product data provided below.
+    const prompt = `You are a strict candle market data analyst. Answer questions using ONLY the product data provided.
 
-STRICT RULES — follow these exactly:
-1. ONLY use data that is explicitly present in the product list below
-2. If a field shows "unknown" — treat it as unavailable, do NOT guess or estimate it
-3. If a comparison cannot be made because data is missing — clearly state which data is missing and why
-4. NEVER invent prices, ratings, burn times or any numbers not in the data
-5. If the question asks to compare two brands — only compare fields where BOTH brands have real data
-6. Always cite the specific product name and its source (Amazon/Walmart/PF Candle) in your answer
-7. Keep answers concise — max 150 words
-8. If absolutely no relevant data exists for the question — say exactly: "The available data does not contain enough information to answer this question. Available fields are: price, stars, reviews, burn hours, burn/oz, price/oz, weight, scent, candle type, wicks, material."
+DATA QUALITY REPORT (what fields are available per source):
+${dataQualitySummary}
+
+STRICT RULES:
+1. ONLY use data explicitly present in the product list
+2. If a field shows "unknown" — it is unavailable, do NOT guess
+3. If comparison cannot be made due to missing data — say which field is missing and for which source
+4. NEVER invent prices, ratings, burn times or any numbers
+5. When comparing brands/sources — only compare fields where BOTH have real data (not "unknown")
+6. Always cite the specific product name and source in your answer
+7. If user asks "what data is available" or "what can you answer" — use the DATA QUALITY REPORT above to explain what each source has
+8. Keep answers concise — max 200 words
+9. If a new source appears in the data that is not Amazon/Walmart/PF Candle — treat it the same way, use its data quality report
+10. If absolutely no relevant data — say: "The available data does not contain enough information. Try asking about: price comparison, burn efficiency (Amazon only), best rated products, most reviewed products, or scent analysis."
 
 PRODUCT DATA:
 ${productContext}
@@ -63,14 +125,14 @@ Answer based strictly on the data above:`
         messages: [
           {
             role: 'system',
-            content: 'You are a strict data analyst. You NEVER hallucinate or invent data. You only report what is explicitly present in the data provided. If data is missing or unknown, you say so clearly.'
+            content: 'You are a strict data analyst. You NEVER hallucinate or invent data. You only report what is explicitly in the data. If data is missing, you clearly say which source lacks which field.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        max_tokens: 300,
+        max_tokens: 350,
         temperature: 0.1
       })
     })
@@ -78,7 +140,7 @@ Answer based strictly on the data above:`
     const data = await groqResponse.json()
     const answer = data.choices?.[0]?.message?.content || 'Could not generate an answer.'
 
-    return NextResponse.json({ answer })
+    return NextResponse.json({ answer, sources: Object.keys(sources) })
 
   } catch (error) {
     console.error('Chat API error:', error)
