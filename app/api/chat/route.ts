@@ -11,12 +11,14 @@ function getQueryIntent(q: string) {
   if (lower.includes('burn') || lower.includes('efficient')) return 'burn'
   if (lower.includes('price') || lower.includes('cheap') || lower.includes('value') || lower.includes('cost')) return 'price'
   if (lower.includes('scent') || lower.includes('fragrance') || lower.includes('smell')) return 'scent'
-  if (lower.includes('walmart')) return 'walmart'
-  if (lower.includes('target')) return 'target'
-  if (lower.includes('pf') || lower.includes('candle co')) return 'pfcandleco'
   if (lower.includes('amazon')) return 'amazon'
-  if (lower.includes('asda')) return 'asda'
-  if (lower.includes('primark')) return 'primark'
+  if (lower.includes('pf') || lower.includes('candle co') || lower.includes('pfcandleco')) return 'pfcandleco'
+  if (lower.includes('homesick')) return 'homesick'
+  if (lower.includes('paddywax')) return 'paddywax'
+  if (lower.includes('otherland')) return 'otherland'
+  if (lower.includes('boy smells') || lower.includes('boysmells')) return 'boysmells'
+  if (lower.includes('byredo')) return 'byredo'
+  if (lower.includes('keap')) return 'keap'
   if (lower.includes('rating') || lower.includes('review') || lower.includes('rated')) return 'rating'
   if (lower.includes('brand')) return 'brand'
   if (lower.includes('available') || lower.includes('what data')) return 'overview'
@@ -46,7 +48,7 @@ export async function POST(req: Request) {
     // UI filter takes priority, then fall back to intent-based source filter
     if (sourceFilter !== 'all') {
       query = query.eq('source', sourceFilter)
-    } else if (['walmart', 'target', 'pfcandleco', 'amazon', 'asda', 'primark'].includes(intent)) {
+    } else if (['amazon','pfcandleco','homesick','paddywax','otherland','boysmells','byredo','keap'].includes(intent)) {
       query = query.eq('source', intent)
     }
 
