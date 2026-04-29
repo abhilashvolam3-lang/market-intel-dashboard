@@ -20,7 +20,7 @@ function parseAnalysisSections(analysis: string) {
     } else if (current) {
       current.content.push(clean)
     }
-  }    
+  }
   if (current) sections.push(current)
   return sections
 }
@@ -62,23 +62,11 @@ const sourceConfig: Record<string, { bg: string; color: string; label: string }>
 function renderLine(line: string, j: number) {
   const clean = line.replace(/\s+/g, ' ').trim()
   if (!clean) return null
-
   if (clean.match(/^\d+\.\s/)) {
-    return (
-      <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '8px 0 4px', fontSize: '13px' }}>
-        {clean}
-      </p>
-    )
+    return <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '8px 0 4px', fontSize: '13px' }}>{clean}</p>
   }
   if (clean.startsWith('* ')) {
-    return (
-      <p key={j} style={{
-        fontWeight: '600', color: '#cbd5e1', margin: '12px 0 6px',
-        fontSize: '12px', borderLeft: '2px solid #3b82f6', paddingLeft: '8px'
-      }}>
-        {clean.replace(/^\*\s/, '')}
-      </p>
-    )
+    return <p key={j} style={{ fontWeight: '600', color: '#cbd5e1', margin: '12px 0 6px', fontSize: '12px', borderLeft: '2px solid #3b82f6', paddingLeft: '8px' }}>{clean.replace(/^\*\s/, '')}</p>
   }
   if (clean.startsWith('+ ') || clean.startsWith('- ') || clean.startsWith('• ')) {
     return (
@@ -89,17 +77,9 @@ function renderLine(line: string, j: number) {
     )
   }
   if (clean.match(/^#{1,3}\s/)) {
-    return (
-      <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '10px 0 4px', fontSize: '13px' }}>
-        {clean.replace(/^#{1,3}\s/, '')}
-      </p>
-    )
+    return <p key={j} style={{ fontWeight: '700', color: '#e2e8f0', margin: '10px 0 4px', fontSize: '13px' }}>{clean.replace(/^#{1,3}\s/, '')}</p>
   }
-  return (
-    <p key={j} style={{ margin: '4px 0', color: '#a0aec0', fontSize: '13px' }}>
-      {clean}
-    </p>
-  )
+  return <p key={j} style={{ margin: '4px 0', color: '#a0aec0', fontSize: '13px' }}>{clean}</p>
 }
 
 export default function Home() {
@@ -163,12 +143,10 @@ export default function Home() {
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1)
-
       const { data: all } = await supabase
         .from('market_insights')
         .select('*')
         .order('reviews_count', { ascending: false })
-
       setTrend(trends?.[0] || null)
       setAllProducts(all || [])
       setLoading(false)
@@ -350,7 +328,6 @@ export default function Home() {
             🤖 Ask AI about your data
           </p>
 
-          {/* Chat history */}
           {chatHistory.length > 0 && (
             <div style={{ marginBottom: '16px', maxHeight: '300px', overflowY: 'auto' }}>
               {chatHistory.map((chat, i) => (
@@ -369,10 +346,9 @@ export default function Home() {
             </div>
           )}
 
-          {/* Input row */}
           <div style={{ display: 'flex', gap: 10 }}>
             <input
-              placeholder="e.g. Which candle has best burn efficiency? Compare Yankee vs WoodWick..."
+              placeholder="e.g. Which candle has best burn efficiency? Compare Amazon vs Walmart prices..."
               value={chatQuestion}
               onChange={e => setChatQuestion(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && askQuestion()}
@@ -396,31 +372,32 @@ export default function Home() {
               {chatLoading ? '⏳ Thinking...' : '✨ Ask'}
             </button>
             {chatHistory.length > 0 && (
-              <button
-                onClick={() => setChatHistory([])}
-                style={{
-                  background: '#1e2433', color: '#8892a4', border: '1px solid #2a2f3e',
-                  borderRadius: '8px', padding: '12px 14px', fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                Clear
-              </button>
+              <button onClick={() => setChatHistory([])} style={{
+                background: '#1e2433', color: '#8892a4', border: '1px solid #2a2f3e',
+                borderRadius: '8px', padding: '12px 14px', fontSize: '12px', cursor: 'pointer'
+              }}>Clear</button>
             )}
           </div>
 
           {/* Example questions */}
           <div style={{ display: 'flex', gap: 8, marginTop: '10px', flexWrap: 'wrap' }}>
             {[
+              '📊 What data is available?',
               'Best burn efficiency candle?',
               'Cheapest price per oz?',
-              'Compare Yankee vs WoodWick',
-              'Best rated Walmart candle?',
               'Which scent has most reviews?',
+              'Highest price on Amazon?',
+              'Best rated candle overall?',
+              'Compare Amazon vs Walmart prices',
+              'Best value PF Candle product?',
             ].map(q => (
               <button key={q} onClick={() => setChatQuestion(q)} style={{
-                background: '#0f1117', border: '1px solid #2a2f3e', borderRadius: '20px',
-                padding: '4px 12px', color: '#8892a4', fontSize: '11px', cursor: 'pointer'
+                background: q.startsWith('📊') ? '#3b82f620' : '#0f1117',
+                border: q.startsWith('📊') ? '1px solid #3b82f6' : '1px solid #2a2f3e',
+                borderRadius: '20px', padding: '4px 12px',
+                color: q.startsWith('📊') ? '#3b82f6' : '#8892a4',
+                fontSize: '11px', cursor: 'pointer',
+                fontWeight: q.startsWith('📊') ? '700' : '400'
               }}>{q}</button>
             ))}
           </div>
