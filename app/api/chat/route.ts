@@ -8,6 +8,14 @@ const supabase = createClient(
 
 export async function POST(req: Request) {
   try {
+    // FIX 1: Check env var upfront
+    const groqKey = process.env.GROQ_API_KEY
+    if (!groqKey) {
+      return NextResponse.json({
+        answer: 'Server config error: GROQ_API_KEY is not set in Vercel environment variables.'
+      })
+    }
+
     const body = await req.json()
     const question = body.question || ''
 
@@ -22,8 +30,6 @@ export async function POST(req: Request) {
     }
 
     const allProducts = products || []
-
-    // Build per-source data quality report
     const sourceStats: Record<string, any> = {}
     for (const p of allProducts) {
       const s = p.source || 'unknown'
@@ -44,7 +50,6 @@ export async function POST(req: Request) {
     }
 
     const pct = (n: number, total: number) => Math.round((n / total) * 100) + '%'
-
     const dataQuality = Object.entries(sourceStats).map(([src, s]) =>
       src.toUpperCase() + " (" + s.count + " products): " +
       "Price=" + pct(s.price, s.count) +
@@ -78,26 +83,23 @@ export async function POST(req: Request) {
 
     const systemMsg = "You are a strict candle market data analyst. You NEVER hallucinate or invent data. You only report what is explicitly in the data. If data is missing for a field, say so clearly."
 
-    const userMsg = "DATA QUALITY REPORT (% of products with each field):\n" +
-      dataQuality +
-      "\n\nPRODUCT DATA (" + allProducts.length + " products):\n" +
-      productLines +
+    const userMsg = "DATA QUALITY REPORT:\n" + dataQuality +
+      "\n\nPRODUCT DATA (" + allProducts.length + " products):\n" + productLines +
       "\n\nSTRICT RULES:\n" +
       "1. Only use data explicitly present above\n" +
       "2. Fields showing 'unknown' are unavailable - do NOT guess\n" +
-      "3. If comparison cannot be made due to missing data - state which field is missing and for which source\n" +
+      "3. If comparison cannot be made - state which field is missing and for which source\n" +
       "4. NEVER invent prices, ratings, burn times or any numbers\n" +
       "5. Always cite the specific product name and its source\n" +
-      "6. If user asks 'what data is available' - use the DATA QUALITY REPORT to explain what each source has and what comparisons are possible\n" +
+      "6. If user asks 'what data is available' - use the DATA QUALITY REPORT to explain\n" +
       "7. Keep answers concise - max 200 words\n" +
-      "8. If no relevant data exists - say: 'The available data does not contain enough information. Try asking about: price comparison, burn efficiency (Amazon only), best rated products, most reviewed products, or scent analysis.'\n" +
       "\nUSER QUESTION: " + question +
       "\n\nAnswer based strictly on the data above:"
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer ' + process.env.GROQ_API_KEY,
+        'Authorization': 'Bearer ' + groqKey,  // use the checked variable
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
@@ -113,11 +115,17 @@ export async function POST(req: Request) {
 
     const groqData = await groqRes.json()
 
-    if (!groqRes.ok) {
-      return NextResponse.json({ answer: 'Groq API error: ' + JSON.stringify(groqData) })
+    // FIX 2: Surface real Groq errors instead of hiding them
+    if (!groqRes.ok || !groqData.choices?.[0]?.message?.content) {
+      const errDetail = groqData.error?.message
+        || groqData.error?.code
+        || JSON.stringify(groqData).slice(0, 300)
+      return NextResponse.json({
+        answer: `Groq API error (${groqRes.status}): ${errDetail}`
+      })
     }
 
-    const answer = groqData.choices?.[0]?.message?.content || 'Could not generate an answer.'
+    const answer = groqData.choices[0].message.content
     return NextResponse.json({ answer, sources: Object.keys(sourceStats) })
 
   } catch (error) {
