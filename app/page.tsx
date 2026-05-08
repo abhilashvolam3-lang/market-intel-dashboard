@@ -48,7 +48,7 @@ const FEATURES = [
   { key: 'price',     label: '💰 Price',          desc: 'Price range, price/oz, best value' },
   { key: 'burn',      label: '🔥 Burn Efficiency', desc: 'Burn hours, burn/oz, best efficiency' },
   { key: 'scent',     label: '🌸 Scent',           desc: 'Top scents, scent families, trends' },
-  { key: 'brand',     label: '🏷️ Brand',           desc: 'Brand landscape, top brands' },
+  { key: 'brand', label: '🏷 Brand', desc: 'Brand landscape, top brands' },
   { key: 'sentiment', label: '💬 Sentiment',       desc: 'Reviews, complaints, 5-star drivers' },
   { key: 'overall',   label: '📊 Full Analysis',   desc: 'Complete market overview' },
 ]
