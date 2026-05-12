@@ -235,16 +235,14 @@ export default function Home() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(9,1fr)', gap: 8, marginBottom: 16 }}>
           {srcList.map(({ src, products }) => {
             const cfg = SOURCE_CONFIG[src]
-            const avgP = avg(products.filter(p => p.price).map(p => p.price))
-            const isUK = src === 'asda' || src === 'primark'
             return (
               <div key={src} onClick={() => { setActiveTab('data'); setActiveSource(src as SourceKey) }}
                 style={{ ...card, padding: '8px 10px', border: `1px solid ${cfg.color}25`, cursor: 'pointer', transition: 'all .2s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = cfg.color; e.currentTarget.style.transform = 'translateY(-1px)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = cfg.color + '25'; e.currentTarget.style.transform = 'translateY(0)' }}>
                 <p style={{ color: '#8892a4', fontSize: 8, fontWeight: 700, textTransform: 'uppercase', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cfg.icon} {SOURCE_DISPLAY_NAMES[src]}</p>
-                <p style={{ color: '#fff', fontSize: 16, fontWeight: 800, margin: '0 0 1px' }}>{products.length}</p>
-                <p style={{ color: cfg.color, fontSize: 11, fontWeight: 700, margin: 0 }}>{avgP > 0 ? (isUK ? '£' : '$') + avgP.toFixed(2) : 'N/A'}</p>
+                <p style={{ color: '#6b7280', fontSize: 8, margin: '0 0 3px' }}>{cfg.tier}</p>
+                <p style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: 0 }}>{products.length}</p>
               </div>
             )
           })}
