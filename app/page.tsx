@@ -135,8 +135,6 @@ export default function Home() {
   const [allProducts, setAllProducts]           = useState<any[]>([])
   const [trend, setTrend]                       = useState<any>(null)
   const [loading, setLoading]                   = useState(true)
-  const [running, setRunning]                   = useState(false)
-  const [runStatus, setRunStatus]               = useState<string | null>(null)
   const [filterCompany, setFilterCompany]       = useState<SourceKey>('all')
   const [filterProduct, setFilterProduct]       = useState<CandleType>('all')
   const [filterFeature, setFilterFeature]       = useState('overall')
@@ -167,16 +165,6 @@ export default function Home() {
     }
     fetchData()
   }, [])
-
-  const triggerRun = async () => {
-    setRunning(true); setRunStatus(null)
-    try {
-      const res = await fetch('/api/trigger-run', { method: 'POST' })
-      const data = await res.json()
-      setRunStatus(data.success ? 'Pipeline started!' : 'Failed: ' + data.error)
-    } catch { setRunStatus('Network error') }
-    setRunning(false)
-  }
 
   const generateSummary = async () => {
     setSummaryLoading(true); setSummaryGenerated(false); setSummary('')
@@ -382,9 +370,13 @@ export default function Home() {
             <p style={{ color:'#8892a4', fontSize:11, margin:'2px 0 0' }}>Amazon · P.F. Candle Co · Homesick · Paddywax · Otherland · Boy Smells · Keap · ASDA · Primark</p>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-            {trend?.created_at && <span style={{ color:'#8892a4', fontSize:11 }}>Updated: {new Date(trend.created_at).toLocaleString()}</span>}
-            {runStatus && <span style={{ fontSize:11, color:'#10b981' }}>{runStatus}</span>}
-            <button onClick={triggerRun} disabled={running} style={{ background:running?'#1e2433':'linear-gradient(135deg,#3b82f6,#8b5cf6)', color:'#fff', border:'none', borderRadius:8, padding:'8px 16px', fontSize:12, fontWeight:700, cursor:running?'not-allowed':'pointer', opacity:running?0.6:1 }}>{running?'Running...':'▶ Run Now'}</button>
+            {trend?.created_at && (
+              <div style={{ textAlign:'right' }}>
+                <p style={{ color:'#8892a4', fontSize:10, margin:0 }}>Last updated: {new Date(trend.created_at).toLocaleString()}</p>
+                <p style={{ color:'#4a5568', fontSize:10, margin:'2px 0 0' }}>Next refresh: {(() => { const n=new Date(trend.created_at); n.setDate(n.getDate()+7); return n.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) })()}</p>
+              </div>
+            )}
+            <span style={{ background:'#1e2433', border:'1px solid #2a2f3e', color:'#8892a4', fontSize:10, padding:'5px 12px', borderRadius:20, fontWeight:600 }}>🔄 Weekly Auto-Sync</span>
             <span style={{ background:'#2ecc71', color:'#fff', fontSize:10, padding:'3px 10px', borderRadius:20, fontWeight:700 }}>● LIVE</span>
           </div>
         </div>
