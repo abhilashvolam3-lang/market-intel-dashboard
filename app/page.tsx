@@ -54,15 +54,16 @@ const FEATURES = [
 ]
 
 const PRODUCT_TYPES = [
-  { key: 'all',           label: 'All Products'     },
-  { key: 'jar-container', label: 'Jar / Container'  },
-  { key: 'multi-pack',    label: 'Multi-Pack'       },
-  { key: 'tea-light',     label: 'Tea Light'        },
+  { key: 'all',           label: 'All Products'    },
+  { key: 'jar-container', label: 'Jar / Container' },
+  { key: 'multi-pack',    label: 'Multi-Pack'      },
+  { key: 'tea-light',     label: 'Tea Light'       },
   { key: 'taper-pillar',  label: 'Taper / Pillar'  },
+  { key: 'reed-diffuser', label: 'Reed Diffuser'   },
 ]
 
 type SourceKey = 'all' | 'amazon' | 'pfcandleco' | 'homesick' | 'paddywax' | 'otherland' | 'boysmells' | 'keap' | 'asda' | 'primark'
-type CandleType = 'all' | 'jar-container' | 'multi-pack' | 'tea-light' | 'taper-pillar' | 'other'
+type CandleType = 'all' | 'jar-container' | 'multi-pack' | 'tea-light' | 'taper-pillar' | 'reed-diffuser' | 'other'
 type ScentFilter = 'all' | 'scented' | 'unscented'
 type SortKey = 'reviews_count' | 'stars' | 'price' | 'burn_hours' | 'burn_per_oz' | 'price_per_oz'
 
@@ -385,7 +386,7 @@ export default function Home() {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 3, background: '#1e2433', borderRadius: 8, padding: 3 }}>
-                {([{ key: 'all', label: 'All Types' }, { key: 'jar-container', label: 'Jar' }, { key: 'multi-pack', label: 'Pack' }, { key: 'tea-light', label: 'Tea Light' }, { key: 'taper-pillar', label: 'Taper' }] as const).map(t => (
+                {([{ key: 'all', label: 'All Types' }, { key: 'jar-container', label: 'Jar' }, { key: 'multi-pack', label: 'Pack' }, { key: 'tea-light', label: 'Tea Light' }, { key: 'taper-pillar', label: 'Taper' }, { key: 'reed-diffuser', label: 'Diffuser' }] as const).map(t => (
                   <button key={t.key} onClick={() => setActiveCandleType(t.key)} style={pill(activeCandleType === t.key, '#8b5cf6')}>{t.label}</button>
                 ))}
               </div>
@@ -419,7 +420,7 @@ export default function Home() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', gap: 3, marginBottom: 3, flexWrap: 'wrap' }}>
                           <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
-                          {p.candle_type && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#8b5cf620', color: '#a78bfa' }}>{p.candle_type === 'jar-container' ? 'Jar' : p.candle_type === 'multi-pack' ? 'Pack' : p.candle_type === 'tea-light' ? 'Tea' : p.candle_type === 'taper-pillar' ? 'Taper' : p.candle_type}</span>}
+                          {p.candle_type && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#8b5cf620', color: '#a78bfa' }}>{p.candle_type === 'jar-container' ? 'Jar' : p.candle_type === 'multi-pack' ? 'Pack' : p.candle_type === 'tea-light' ? 'Tea' : p.candle_type === 'taper-pillar' ? 'Taper' : p.candle_type === 'reed-diffuser' ? 'Diffuser' : p.candle_type}</span>}
                           {p.is_scented === true && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#10b98120', color: '#34d399' }}>Scented</span>}
                           {p.burn_hours && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: '#ef444420', color: '#f87171' }}>{p.burn_hours}h</span>}
                         </div>
