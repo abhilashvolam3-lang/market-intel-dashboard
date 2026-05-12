@@ -212,12 +212,11 @@ export default function Home() {
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '16px 40px' }}>
 
         {/* KPI ROW */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 8, marginBottom: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 8, marginBottom: 12 }}>
           {[
             { label: 'Products Tracked', value: allProducts.length.toString(), sub: `${amazonP.length} AMZ · ${pfP.length} PF · ${hsP.length} HS · ${pwP.length} PW · ${olP.length} OL · ${bsP.length} BS · ${kpP.length} KP · ${asdaP.length} ASDA · ${priP.length} PRI`, color: '#3b82f6' },
             { label: 'Total Reviews',    value: totalReviews.toLocaleString(), sub: 'Across all sources', color: '#8b5cf6' },
             { label: 'Avg Rating',       value: avg(validStars).toFixed(1) + ' ⭐', sub: 'Combined sources', color: '#f59e0b' },
-            { label: 'Avg Price',        value: '$' + avg(validPrices).toFixed(2), sub: 'All products', color: '#10b981' },
             { label: 'Avg Price/oz',     value: validPPoz.length ? '$' + avg(validPPoz).toFixed(2) + '/oz' : 'N/A', sub: 'Products with weight data', color: '#f97316' },
             { label: 'Avg Burn Time',    value: validBurnHz.length ? Math.round(avg(validBurnHz)) + ' hrs' : 'N/A', sub: 'Products with burn data', color: '#ef4444' },
             { label: 'Avg Burn/oz',      value: validBurnPoz.length ? avg(validBurnPoz).toFixed(1) + ' hrs/oz' : 'N/A', sub: 'Products with burn data', color: '#06b6d4' },
