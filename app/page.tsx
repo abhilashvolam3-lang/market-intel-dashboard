@@ -161,7 +161,7 @@ export default function Home() {
     async function fetchData() {
       const [{ data: trends }, { data: products }] = await Promise.all([
         supabase.from('trend_analysis').select('*').order('created_at', { ascending: false }).limit(1),
-        supabase.from('market_insights').select('*').order('reviews_count', { ascending: false }),
+        supabase.from('market_insights').select('*').order('reviews_count', { ascending: false }).limit(5000),
       ])
       setTrend(trends?.[0] || null)
       setAllProducts((products || []).filter((p: any) => p.source !== 'byredo'))
