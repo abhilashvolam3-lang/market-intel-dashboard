@@ -80,7 +80,7 @@ type SourceKey = 'all' | 'amazon' | 'pfcandleco' | 'homesick' | 'paddywax' | 'ot
 type CandleType = 'all' | 'jar-container' | 'multi-pack' | 'tea-light' | 'taper-pillar' | 'reed-diffuser' | 'other'
 type ScentFilter = 'all' | 'scented' | 'unscented'
 type SortKey = 'reviews_count' | 'stars' | 'price' | 'burn_hours' | 'burn_per_oz' | 'price_per_oz'
-type TabKey = 'analysis' | 'charts' | 'scent' | 'brands' | 'data'
+type TabKey = 'analysis' | 'charts' | 'scent' | 'brands' | 'data' | 'history' | 'newproducts'
 
 const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
 
@@ -152,6 +152,10 @@ export default function Home() {
   const [selectedProduct, setSelectedProduct]   = useState<any>(null)
   const [chartMetric, setChartMetric]           = useState<'count'|'avg_price'|'avg_burn'|'avg_rating'>('count')
   const [exportStatus, setExportStatus]         = useState('')
+  const [historyData, setHistoryData]           = useState<any[]>([])
+  const [historyLoading, setHistoryLoading]     = useState(false)
+  const [historyLoaded, setHistoryLoaded]       = useState(false)
+  const [historyDateFilter, setHistoryDateFilter] = useState('all')
 
   useEffect(() => {
     async function fetchData() {
@@ -199,7 +203,22 @@ export default function Home() {
     setChatLoading(false)
   }
 
-  // ── Export to CSV ─────────────────────────────────────────────────────────
+  // ── Fetch history when tab is opened ─────────────────────────────────────
+  useEffect(() => {
+    if ((activeTab === 'history' || activeTab === 'newproducts') && !historyLoaded) {
+      setHistoryLoading(true)
+      supabase
+        .from('market_insights_history')
+        .select('id,scraped_at,source,product_name,brand,price,stars,reviews_count,candle_type,scent_name,is_scented,weight_oz,burn_hours,burn_per_oz,price_per_oz,availability,image_url')
+        .order('scraped_at', { ascending: false })
+        .limit(5000)
+        .then(({ data }) => {
+          setHistoryData(data || [])
+          setHistoryLoaded(true)
+          setHistoryLoading(false)
+        })
+    }
+  }, [activeTab, historyLoaded])
   const exportCSV = (products: any[], filename: string) => {
     const cols = ['product_name','brand','source','price','stars','reviews_count','burn_hours','weight_oz','burn_per_oz','price_per_oz','candle_type','scent_name','is_scented','availability']
     const header = cols.join(',')
@@ -347,11 +366,13 @@ export default function Home() {
   ]
 
   const TABS: {key: TabKey; label: string}[] = [
-    {key:'analysis', label:'🧠 AI Analysis'},
-    {key:'charts',   label:'📊 Charts'},
-    {key:'scent',    label:'🌸 Scent Families'},
-    {key:'brands',   label:'🏷️ Brand Compare'},
-    {key:'data',     label:'📋 Data Explorer'},
+    {key:'analysis',    label:'🧠 AI Analysis'},
+    {key:'charts',      label:'📊 Charts'},
+    {key:'scent',       label:'🌸 Scent Families'},
+    {key:'brands',      label:'🏷️ Brand Compare'},
+    {key:'data',        label:'📋 Data Explorer'},
+    {key:'history',     label:'🕰️ History'},
+    {key:'newproducts', label:'🆕 New Products'},
   ]
 
   // Chart metric max for bar scaling
@@ -896,6 +917,231 @@ export default function Home() {
               })}
             </div>
             {filteredProducts.length===0&&<div style={{ ...card,padding:40,textAlign:'center',marginTop:16 }}><p style={{ color:'#8892a4',fontSize:13 }}>No products match your filters.</p></div>}
+          </div>
+        )}
+
+        {/* ── HISTORY TAB ── */}
+        {activeTab==='history' && (
+          <div>
+            {historyLoading && (
+              <div style={{ ...card, padding:40, textAlign:'center' }}>
+                <p style={{ color:'#8892a4', fontSize:13 }}>Loading history...</p>
+              </div>
+            )}
+            {!historyLoading && historyData.length === 0 && (
+              <div style={{ ...card, padding:40, textAlign:'center' }}>
+                <p style={{ fontSize:32, margin:'0 0 12px' }}>🕰️</p>
+                <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:'0 0 8px' }}>No history snapshots yet</p>
+                <p style={{ color:'#8892a4', fontSize:12 }}>History is captured automatically every weekly scrape run. Check back after the next sync.</p>
+              </div>
+            )}
+            {!historyLoading && historyData.length > 0 && (() => {
+              // group by scraped_at date
+              const dates = Array.from(new Set(historyData.map(h => h.scraped_at?.slice(0,10)))).sort().reverse()
+              const filtered = historyDateFilter === 'all' ? historyData : historyData.filter(h => h.scraped_at?.slice(0,10) === historyDateFilter)
+              const byDateSource = dates.map(date => {
+                const rows = historyData.filter(h => h.scraped_at?.slice(0,10) === date)
+                const bySource = Object.keys(SOURCE_CONFIG).map(src => ({ src, count: rows.filter(r => r.source === src).length })).filter(d => d.count > 0)
+                return { date, total: rows.length, bySource }
+              })
+              return (
+                <div>
+                  {/* Snapshot timeline summary */}
+                  <div style={{ ...card, padding:20, marginBottom:16 }}>
+                    <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:'0 0 14px' }}>📅 Snapshot Timeline — {dates.length} run{dates.length!==1?'s':''} captured</p>
+                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                      {byDateSource.map(({ date, total, bySource }) => (
+                        <div key={date}
+                          onClick={() => setHistoryDateFilter(historyDateFilter === date ? 'all' : date)}
+                          style={{ background: historyDateFilter === date ? '#3b82f620' : '#0f1117', border: `1px solid ${historyDateFilter === date ? '#3b82f6' : '#2a2f3e'}`, borderRadius:10, padding:'10px 14px', cursor:'pointer', minWidth:160, transition:'all .2s' }}>
+                          <p style={{ color: historyDateFilter===date ? '#93c5fd' : '#8892a4', fontSize:10, fontWeight:700, margin:'0 0 4px' }}>{new Date(date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</p>
+                          <p style={{ color:'#fff', fontSize:20, fontWeight:800, margin:'0 0 6px' }}>{total}</p>
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                            {bySource.map(({ src, count }) => (
+                              <span key={src} style={{ fontSize:9, background: SOURCE_CONFIG[src]?.color+'25', color: SOURCE_CONFIG[src]?.color, padding:'1px 5px', borderRadius:4, fontWeight:700 }}>
+                                {SOURCE_DISPLAY_NAMES[src]?.split(' ')[0]} {count}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {historyDateFilter !== 'all' && (
+                      <button onClick={() => setHistoryDateFilter('all')} style={{ marginTop:12, background:'transparent', border:'1px solid #2a2f3e', color:'#8892a4', borderRadius:6, padding:'4px 12px', cursor:'pointer', fontSize:11 }}>✕ Clear filter</button>
+                    )}
+                  </div>
+
+                  {/* Product rows */}
+                  <div style={{ ...card, padding:16 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                      <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0 }}>
+                        {historyDateFilter==='all' ? `All snapshots (${filtered.length} records)` : `Snapshot: ${new Date(historyDateFilter).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})} — ${filtered.length} products`}
+                      </p>
+                      <button onClick={() => exportCSV(filtered, `history-${historyDateFilter}.csv`)} style={{ background:'#1e2433', border:'1px solid #2a2f3e', color:'#8892a4', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:11 }}>⬇ Export CSV</button>
+                    </div>
+                    {/* Table header */}
+                    <div style={{ display:'grid', gridTemplateColumns:'120px 1fr 80px 60px 60px 70px 60px', gap:8, padding:'6px 10px', background:'#0f1117', borderRadius:6, marginBottom:6 }}>
+                      {['Date','Product','Source','Price','Rating','Reviews','Type'].map(h => (
+                        <span key={h} style={{ color:'#4a5568', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.5px' }}>{h}</span>
+                      ))}
+                    </div>
+                    <div style={{ maxHeight:600, overflowY:'auto' }}>
+                      {filtered.slice(0,500).map((h, i) => (
+                        <div key={h.id||i} style={{ display:'grid', gridTemplateColumns:'120px 1fr 80px 60px 60px 70px 60px', gap:8, padding:'7px 10px', borderBottom:'1px solid #1e2433', alignItems:'center' }}
+                          onMouseEnter={e => (e.currentTarget.style.background='#1e2433')}
+                          onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
+                          <span style={{ color:'#8892a4', fontSize:10 }}>{h.scraped_at?.slice(0,10)}</span>
+                          <span style={{ color:'#e2e8f0', fontSize:11, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h.product_name}</span>
+                          <span style={{ fontSize:10 }}>
+                            <span style={{ background: SOURCE_CONFIG[h.source]?.color+'20', color: SOURCE_CONFIG[h.source]?.color, padding:'2px 6px', borderRadius:4, fontWeight:700, fontSize:9 }}>{SOURCE_CONFIG[h.source]?.icon} {SOURCE_DISPLAY_NAMES[h.source]?.split(' ')[0]||h.source}</span>
+                          </span>
+                          <span style={{ color:'#10b981', fontSize:11, fontWeight:700 }}>{h.price ? `$${h.price}` : '—'}</span>
+                          <span style={{ color:'#fbbf24', fontSize:11 }}>{h.stars ? `${h.stars}⭐` : '—'}</span>
+                          <span style={{ color:'#8892a4', fontSize:10 }}>{h.reviews_count ? h.reviews_count.toLocaleString() : '—'}</span>
+                          <span style={{ color:'#6b7280', fontSize:9 }}>{h.candle_type||'—'}</span>
+                        </div>
+                      ))}
+                      {filtered.length > 500 && <p style={{ color:'#4a5568', fontSize:11, textAlign:'center', padding:12 }}>Showing 500 of {filtered.length} — export CSV for full data</p>}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        )}
+
+        {/* ── NEW PRODUCTS TAB ── */}
+        {activeTab==='newproducts' && (
+          <div>
+            {historyLoading && (
+              <div style={{ ...card, padding:40, textAlign:'center' }}>
+                <p style={{ color:'#8892a4', fontSize:13 }}>Loading...</p>
+              </div>
+            )}
+            {!historyLoading && historyData.length === 0 && (
+              <div style={{ ...card, padding:40, textAlign:'center' }}>
+                <p style={{ fontSize:32, margin:'0 0 12px' }}>🆕</p>
+                <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:'0 0 8px' }}>No history data yet</p>
+                <p style={{ color:'#8892a4', fontSize:12 }}>New products are detected by comparing the latest scrape run against the previous one. Check back after at least 2 scrape runs.</p>
+              </div>
+            )}
+            {!historyLoading && historyData.length > 0 && (() => {
+              // Get all unique scraped_at dates, sorted desc
+              const dates = Array.from(new Set(historyData.map(h => h.scraped_at?.slice(0,10)))).sort().reverse()
+              if (dates.length < 2) return (
+                <div style={{ ...card, padding:40, textAlign:'center' }}>
+                  <p style={{ fontSize:32, margin:'0 0 12px' }}>🆕</p>
+                  <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:'0 0 8px' }}>Need at least 2 scrape runs</p>
+                  <p style={{ color:'#8892a4', fontSize:12 }}>Only 1 snapshot exists so far. New product detection requires a previous run to compare against.</p>
+                </div>
+              )
+              const latestDate   = dates[0]
+              const previousDate = dates[1]
+              const latestRun    = historyData.filter(h => h.scraped_at?.slice(0,10) === latestDate)
+              const previousRun  = historyData.filter(h => h.scraped_at?.slice(0,10) === previousDate)
+              // New = in latest but name+source combo not in previous
+              const previousKeys = new Set(previousRun.map(h => `${h.source}::${h.product_name}`))
+              const newProducts  = latestRun.filter(h => !previousKeys.has(`${h.source}::${h.product_name}`))
+              // Removed = in previous but not in latest
+              const latestKeys   = new Set(latestRun.map(h => `${h.source}::${h.product_name}`))
+              const removedProducts = previousRun.filter(h => !latestKeys.has(`${h.source}::${h.product_name}`))
+
+              const newBySource = Object.keys(SOURCE_CONFIG).map(src => ({
+                src, count: newProducts.filter(p => p.source === src).length
+              })).filter(d => d.count > 0)
+
+              return (
+                <div>
+                  {/* Summary header */}
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+                    <div style={{ ...card, padding:20, borderTop:'3px solid #10b981' }}>
+                      <p style={{ color:'#8892a4', fontSize:10, fontWeight:700, textTransform:'uppercase', margin:'0 0 6px' }}>🆕 New Products Added</p>
+                      <p style={{ color:'#10b981', fontSize:32, fontWeight:800, margin:'0 0 4px' }}>{newProducts.length}</p>
+                      <p style={{ color:'#8892a4', fontSize:11, margin:'0 0 10px' }}>Comparing <span style={{ color:'#93c5fd' }}>{latestDate}</span> vs <span style={{ color:'#8892a4' }}>{previousDate}</span></p>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        {newBySource.map(({ src, count }) => (
+                          <span key={src} style={{ background: SOURCE_CONFIG[src]?.color+'20', color: SOURCE_CONFIG[src]?.color, padding:'3px 8px', borderRadius:6, fontSize:10, fontWeight:700 }}>
+                            {SOURCE_CONFIG[src]?.icon} {SOURCE_DISPLAY_NAMES[src]?.split(' ')[0]} +{count}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ ...card, padding:20, borderTop:'3px solid #ef4444' }}>
+                      <p style={{ color:'#8892a4', fontSize:10, fontWeight:700, textTransform:'uppercase', margin:'0 0 6px' }}>🗑️ Products Removed / Delisted</p>
+                      <p style={{ color:'#ef4444', fontSize:32, fontWeight:800, margin:'0 0 4px' }}>{removedProducts.length}</p>
+                      <p style={{ color:'#8892a4', fontSize:11, margin:'0 0 10px' }}>No longer in the latest scrape run</p>
+                      <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        {Object.keys(SOURCE_CONFIG).map(src => {
+                          const count = removedProducts.filter(p => p.source === src).length
+                          if (!count) return null
+                          return <span key={src} style={{ background:'#ef444420', color:'#ef4444', padding:'3px 8px', borderRadius:6, fontSize:10, fontWeight:700 }}>
+                            {SOURCE_CONFIG[src]?.icon} {SOURCE_DISPLAY_NAMES[src]?.split(' ')[0]} -{count}
+                          </span>
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* New products list */}
+                  {newProducts.length > 0 && (
+                    <div style={{ ...card, padding:16, marginBottom:16 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                        <p style={{ color:'#10b981', fontSize:13, fontWeight:700, margin:0 }}>✅ {newProducts.length} New Products (since {previousDate})</p>
+                        <button onClick={() => exportCSV(newProducts, `new-products-${latestDate}.csv`)} style={{ background:'#1e2433', border:'1px solid #2a2f3e', color:'#8892a4', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:11 }}>⬇ Export CSV</button>
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                        {newProducts.map((p, i) => {
+                          const cfg = SOURCE_CONFIG[p.source]
+                          return (
+                            <div key={i} style={{ background:'#0f1117', border:`1px solid ${cfg?.color}30`, borderRadius:8, padding:'10px 12px', display:'flex', gap:10, alignItems:'flex-start' }}>
+                              {p.image_url && <img src={p.image_url} alt="" style={{ width:40, height:40, objectFit:'cover', borderRadius:5, flexShrink:0 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <p style={{ color:'#e2e8f0', fontSize:11, fontWeight:600, margin:'0 0 4px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.product_name}</p>
+                                <div style={{ display:'flex', gap:5, flexWrap:'wrap', alignItems:'center' }}>
+                                  <span style={{ background: cfg?.color+'20', color: cfg?.color, padding:'1px 5px', borderRadius:4, fontSize:9, fontWeight:700 }}>{cfg?.icon} {SOURCE_DISPLAY_NAMES[p.source]?.split(' ')[0]}</span>
+                                  {p.price && <span style={{ color:'#10b981', fontSize:10, fontWeight:700 }}>${p.price}</span>}
+                                  {p.stars && <span style={{ color:'#fbbf24', fontSize:10 }}>⭐ {p.stars}</span>}
+                                  {p.candle_type && <span style={{ color:'#6b7280', fontSize:9 }}>{p.candle_type}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Removed products list */}
+                  {removedProducts.length > 0 && (
+                    <div style={{ ...card, padding:16 }}>
+                      <p style={{ color:'#ef4444', fontSize:13, fontWeight:700, margin:'0 0 12px' }}>🗑️ {removedProducts.length} Removed / Delisted (since {previousDate})</p>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                        {removedProducts.map((p, i) => {
+                          const cfg = SOURCE_CONFIG[p.source]
+                          return (
+                            <div key={i} style={{ background:'#0f1117', border:'1px solid #ef444425', borderRadius:8, padding:'10px 12px', opacity:0.7 }}>
+                              <p style={{ color:'#9ca3af', fontSize:11, fontWeight:600, margin:'0 0 4px', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.product_name}</p>
+                              <div style={{ display:'flex', gap:5, alignItems:'center' }}>
+                                <span style={{ background: cfg?.color+'15', color: cfg?.color, padding:'1px 5px', borderRadius:4, fontSize:9, fontWeight:700 }}>{cfg?.icon} {SOURCE_DISPLAY_NAMES[p.source]?.split(' ')[0]}</span>
+                                {p.price && <span style={{ color:'#6b7280', fontSize:10 }}>${p.price}</span>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {newProducts.length === 0 && removedProducts.length === 0 && (
+                    <div style={{ ...card, padding:40, textAlign:'center' }}>
+                      <p style={{ fontSize:32, margin:'0 0 12px' }}>✅</p>
+                      <p style={{ color:'#fff', fontSize:14, fontWeight:700 }}>No changes between the last two runs</p>
+                      <p style={{ color:'#8892a4', fontSize:12 }}>Product catalog was identical on {previousDate} and {latestDate}</p>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
 
