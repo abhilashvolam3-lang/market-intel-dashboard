@@ -156,6 +156,8 @@ export default function Home() {
   const [historyLoading, setHistoryLoading]     = useState(false)
   const [historyLoaded, setHistoryLoaded]       = useState(false)
   const [historyDateFilter, setHistoryDateFilter] = useState('all')
+  const [analysisDataSource, setAnalysisDataSource] = useState<'current'|'alltime'|string>('current')
+  const [analysisProducts, setAnalysisProducts] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -176,10 +178,11 @@ export default function Home() {
       const featureLabel = FEATURES.find(f => f.key === filterFeature)?.label || filterFeature
       const companyLabel = filterCompany === 'all' ? 'all companies' : SOURCE_DISPLAY_NAMES[filterCompany]
       const productLabel = PRODUCT_TYPES.find(p => p.key === filterProduct)?.label || filterProduct
-      const question = `Generate a focused ${featureLabel} for ${companyLabel}, product type: ${productLabel}. Be specific with numbers and actionable insights.`
+      const dsLabel = analysisDataSource === 'current' ? 'current data' : analysisDataSource === 'alltime' ? 'all-time combined data' : `snapshot ${analysisDataSource}`
+      const question = `Generate a focused ${featureLabel} for ${companyLabel}, product type: ${productLabel}. Using ${dsLabel}. Be specific with numbers and actionable insights.`
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, sourceFilter: filterCompany, categoryFilter: filterProduct })
+        body: JSON.stringify({ question, sourceFilter: filterCompany, categoryFilter: filterProduct, dataSource: analysisDataSource })
       })
       const data = await res.json()
       setSummary(data.answer || 'No summary generated.')
@@ -195,7 +198,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q, sourceFilter: filterCompany, categoryFilter: filterProduct })
+        body: JSON.stringify({ question: q, sourceFilter: filterCompany, categoryFilter: filterProduct, dataSource: analysisDataSource })
       })
       const data = await res.json()
       setChatHistory(prev => [...prev, { q, a: data.answer }])
@@ -343,6 +346,28 @@ export default function Home() {
     ? allProducts.filter(p => filterProduct === 'all' || p.candle_type === filterProduct).length
     : allProducts.filter(p => p.source === filterCompany && (filterProduct === 'all' || p.candle_type === filterProduct)).length
 
+  // Compute the dataset used for AI analysis based on selected source
+  const snapshotDates = useMemo(() => {
+    const dates = [...new Set(historyData.map((p: any) => p.scraped_at?.slice(0,10)))].filter(Boolean).sort().reverse()
+    return dates
+  }, [historyData])
+
+  const analysisDataset = useMemo(() => {
+    if (analysisDataSource === 'current') return allProducts
+    if (analysisDataSource === 'alltime') {
+      // Merge current + history, dedupe by product_name+source
+      const seen = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
+      const extra = historyData.filter((p:any) => !seen.has(`${p.product_name}||${p.source}`))
+      return [...allProducts, ...extra]
+    }
+    // specific snapshot date
+    return historyData.filter((p:any) => p.scraped_at?.slice(0,10) === analysisDataSource)
+  }, [analysisDataSource, allProducts, historyData])
+
+  const analysisFilteredCount = filterCompany === 'all'
+    ? analysisDataset.filter((p:any) => filterProduct === 'all' || p.candle_type === filterProduct).length
+    : analysisDataset.filter((p:any) => p.source === filterCompany && (filterProduct === 'all' || p.candle_type === filterProduct)).length
+
   const filteredProducts = allProducts
     .filter(p => activeSource === 'all' || p.source === activeSource)
     .filter(p => activeCandleType === 'all' || p.candle_type === activeCandleType)
@@ -471,6 +496,27 @@ export default function Home() {
           <div>
             <div style={{ ...card, padding:24, marginBottom:16 }}>
               <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:'0 0 20px' }}>Select filters to generate your analysis</p>
+
+              {/* Step 0 — Data Source */}
+              <div style={{ marginBottom:18 }}>
+                <p style={{ color:'#8892a4', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.8px', margin:'0 0 8px' }}>Step 0 — Data Source</p>
+                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                  {[
+                    { key:'current', label:`📊 Current (${allProducts.length})`, desc:'Live deduplicated data' },
+                    { key:'alltime', label:`🗃️ All Time (${[...new Set([...allProducts.map((p:any)=>`${p.product_name}||${p.source}`)])].length + historyData.filter((p:any)=>![...allProducts.map((h:any)=>`${h.product_name}||${h.source}`)].includes(`${p.product_name}||${p.source}`)).length})`, desc:'Current + history combined' },
+                    ...snapshotDates.map(d => ({ key: d, label: `📅 ${d} (${historyData.filter((p:any)=>p.scraped_at?.slice(0,10)===d).length})`, desc: 'Specific snapshot' }))
+                  ].map(opt => (
+                    <button key={opt.key} onClick={()=>{ setAnalysisDataSource(opt.key); if(opt.key!=='current') { if(!historyLoaded) { setHistoryLoading(true); supabase.from('market_insights_history').select('id,scraped_at,source,product_name,brand,price,stars,reviews_count,candle_type,scent_name,is_scented,weight_oz,burn_hours,burn_per_oz,price_per_oz,availability,image_url').order('scraped_at',{ascending:false}).limit(5000).then(({data})=>{ setHistoryData(data||[]); setHistoryLoaded(true); setHistoryLoading(false) }) } } }}
+                      style={{ padding:'7px 14px', borderRadius:8, border:'none', cursor:'pointer', fontSize:11, fontWeight:600, background:analysisDataSource===opt.key?'#10b981':'#0f1117', color:analysisDataSource===opt.key?'#fff':'#8892a4', outline:analysisDataSource===opt.key?'1px solid #10b981':'1px solid #2a2f3e' }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {historyLoading && <p style={{ color:'#8892a4', fontSize:10, margin:'6px 0 0' }}>Loading history data...</p>}
+                <p style={{ color:'#4a5568', fontSize:10, margin:'6px 0 0' }}>
+                  {analysisDataSource === 'current' ? '🟢 Using live market_insights table' : analysisDataSource === 'alltime' ? '🟣 Using current + all historical snapshots combined' : `📅 Using snapshot from ${analysisDataSource}`}
+                </p>
+              </div>
               <div style={{ marginBottom:18 }}>
                 <p style={{ color:'#8892a4', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.8px', margin:'0 0 8px' }}>Step 1 — Company</p>
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -509,7 +555,7 @@ export default function Home() {
                 <span style={{ background:'#3b82f620', color:'#60a5fa', fontSize:10, padding:'2px 8px', borderRadius:20, fontWeight:600 }}>{filterCompany==='all'?'All Companies':SOURCE_DISPLAY_NAMES[filterCompany]}</span>
                 <span style={{ background:'#8b5cf620', color:'#a78bfa', fontSize:10, padding:'2px 8px', borderRadius:20, fontWeight:600 }}>{PRODUCT_TYPES.find(p=>p.key===filterProduct)?.label}</span>
                 <span style={{ background:'#10b98120', color:'#34d399', fontSize:10, padding:'2px 8px', borderRadius:20, fontWeight:600 }}>{FEATURES.find(f=>f.key===filterFeature)?.label}</span>
-                <span style={{ color:'#4a5568', fontSize:10 }}>({filteredCount} products)</span>
+                <span style={{ color:'#4a5568', fontSize:10 }}>({analysisFilteredCount} products)</span>
               </div>
               <button onClick={generateSummary} disabled={summaryLoading} style={{ background:summaryLoading?'#1e2433':'linear-gradient(135deg,#3b82f6,#8b5cf6)', color:'#fff', border:'none', borderRadius:10, padding:'13px 28px', fontSize:13, fontWeight:700, cursor:summaryLoading?'not-allowed':'pointer', opacity:summaryLoading?0.6:1, width:'100%' }}>
                 {summaryLoading?'Generating Analysis...':'Generate Analysis'}
@@ -521,14 +567,14 @@ export default function Home() {
                 {summaryLoading?(
                   <div style={{ textAlign:'center', padding:'32px 0' }}>
                     <div style={{ fontSize:28, marginBottom:10 }}>🧠</div>
-                    <p style={{ color:'#8892a4', fontSize:13 }}>Analysing {filteredCount} products...</p>
+                    <p style={{ color:'#8892a4', fontSize:13 }}>Analysing {analysisFilteredCount} products from {analysisDataSource === 'current' ? 'current data' : analysisDataSource === 'alltime' ? 'all-time data' : `snapshot ${analysisDataSource}`}...</p>
                   </div>
                 ):(
                   <>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16, flexWrap:'wrap', gap:8 }}>
                       <div>
                         <h3 style={{ color:'#fff', fontSize:15, fontWeight:700, margin:0 }}>{FEATURES.find(f=>f.key===filterFeature)?.label}</h3>
-                        <p style={{ color:'#8892a4', fontSize:11, margin:'3px 0 0' }}>{filterCompany==='all'?'All Companies':SOURCE_DISPLAY_NAMES[filterCompany]} · {PRODUCT_TYPES.find(p=>p.key===filterProduct)?.label} · {filteredCount} products</p>
+                        <p style={{ color:'#8892a4', fontSize:11, margin:'3px 0 0' }}>{filterCompany==='all'?'All Companies':SOURCE_DISPLAY_NAMES[filterCompany]} · {PRODUCT_TYPES.find(p=>p.key===filterProduct)?.label} · {analysisFilteredCount} products · {analysisDataSource==='current'?'Current data':analysisDataSource==='alltime'?'All-time combined':`Snapshot ${analysisDataSource}`}</p>
                       </div>
                       <button onClick={()=>{setSummaryGenerated(false);setSummary('')}} style={{ background:'#0f1117', color:'#8892a4', border:'1px solid #2a2f3e', borderRadius:8, padding:'5px 12px', fontSize:11, cursor:'pointer' }}>Clear</button>
                     </div>
