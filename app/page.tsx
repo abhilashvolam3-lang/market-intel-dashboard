@@ -208,7 +208,7 @@ export default function Home() {
 
   // ── Fetch history when tab is opened ─────────────────────────────────────
   useEffect(() => {
-    if ((activeTab === 'history' || activeTab === 'newproducts') && !historyLoaded) {
+    if (!historyLoaded) {
       setHistoryLoading(true)
       supabase
         .from('market_insights_history')
@@ -221,7 +221,7 @@ export default function Home() {
           setHistoryLoading(false)
         })
     }
-  }, [activeTab, historyLoaded])
+  }, [])
   const exportCSV = (products: any[], filename: string) => {
     const cols = ['product_name','brand','source','price','stars','reviews_count','burn_hours','weight_oz','burn_per_oz','price_per_oz','candle_type','scent_name','is_scented','availability']
     const header = cols.join(',')
@@ -510,7 +510,7 @@ export default function Home() {
                     { key:'alltime', label:`🗃️ All Time (${allTimeCount})`, desc:'Current + history combined' },
                     ...snapshotDates.map(d => ({ key: d, label: `📅 ${d} (${historyData.filter((p:any)=>p.scraped_at?.slice(0,10)===d).length})`, desc: 'Specific snapshot' }))
                   ].map(opt => (
-                    <button key={opt.key} onClick={()=>{ setAnalysisDataSource(opt.key); if(opt.key!=='current') { if(!historyLoaded) { setHistoryLoading(true); supabase.from('market_insights_history').select('id,scraped_at,source,product_name,brand,price,stars,reviews_count,candle_type,scent_name,is_scented,weight_oz,burn_hours,burn_per_oz,price_per_oz,availability,image_url').order('scraped_at',{ascending:false}).limit(5000).then(({data})=>{ setHistoryData(data||[]); setHistoryLoaded(true); setHistoryLoading(false) }) } } }}
+                    <button key={opt.key} onClick={()=>{ setAnalysisDataSource(opt.key) }}
                       style={{ padding:'7px 14px', borderRadius:8, border:'none', cursor:'pointer', fontSize:11, fontWeight:600, background:analysisDataSource===opt.key?'#10b981':'#0f1117', color:analysisDataSource===opt.key?'#fff':'#8892a4', outline:analysisDataSource===opt.key?'1px solid #10b981':'1px solid #2a2f3e' }}>
                       {opt.label}
                     </button>
