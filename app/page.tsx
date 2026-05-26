@@ -353,6 +353,7 @@ export default function Home() {
   }, [historyData])
 
   const allTimeCount = useMemo(() => {
+    console.log('allTimeCount recompute - allProducts:', allProducts.length, 'historyData:', historyData.length)
     if (historyData.length === 0) return allProducts.length
     // All unique products ever: dedupe history by product_name+source, then union with current
     const historyUnique = new Map<string, any>()
@@ -363,6 +364,7 @@ export default function Home() {
     const currentKeys = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
     let extra = 0
     historyUnique.forEach((_, key) => { if (!currentKeys.has(key)) extra++ })
+    console.log('historyUnique size:', historyUnique.size, 'extra:', extra, 'total:', allProducts.length + extra)
     return allProducts.length + extra
   }, [allProducts, historyData])
 
