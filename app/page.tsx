@@ -352,15 +352,19 @@ export default function Home() {
     return dates
   }, [historyData])
 
+  const allTimeCount = useMemo(() => {
+    const seen = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
+    const uniqueFromHistory = historyData.filter((p:any) => !seen.has(`${p.product_name}||${p.source}`))
+    return allProducts.length + uniqueFromHistory.length
+  }, [allProducts, historyData])
+
   const analysisDataset = useMemo(() => {
     if (analysisDataSource === 'current') return allProducts
     if (analysisDataSource === 'alltime') {
-      // Merge current + history, dedupe by product_name+source
       const seen = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
       const extra = historyData.filter((p:any) => !seen.has(`${p.product_name}||${p.source}`))
       return [...allProducts, ...extra]
     }
-    // specific snapshot date
     return historyData.filter((p:any) => p.scraped_at?.slice(0,10) === analysisDataSource)
   }, [analysisDataSource, allProducts, historyData])
 
@@ -503,7 +507,7 @@ export default function Home() {
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   {[
                     { key:'current', label:`📊 Current (${allProducts.length})`, desc:'Live deduplicated data' },
-                    { key:'alltime', label:`🗃️ All Time (${[...new Set([...allProducts.map((p:any)=>`${p.product_name}||${p.source}`)])].length + historyData.filter((p:any)=>![...allProducts.map((h:any)=>`${h.product_name}||${h.source}`)].includes(`${p.product_name}||${p.source}`)).length})`, desc:'Current + history combined' },
+                    { key:'alltime', label:`🗃️ All Time (${allTimeCount})`, desc:'Current + history combined' },
                     ...snapshotDates.map(d => ({ key: d, label: `📅 ${d} (${historyData.filter((p:any)=>p.scraped_at?.slice(0,10)===d).length})`, desc: 'Specific snapshot' }))
                   ].map(opt => (
                     <button key={opt.key} onClick={()=>{ setAnalysisDataSource(opt.key); if(opt.key!=='current') { if(!historyLoaded) { setHistoryLoading(true); supabase.from('market_insights_history').select('id,scraped_at,source,product_name,brand,price,stars,reviews_count,candle_type,scent_name,is_scented,weight_oz,burn_hours,burn_per_oz,price_per_oz,availability,image_url').order('scraped_at',{ascending:false}).limit(5000).then(({data})=>{ setHistoryData(data||[]); setHistoryLoaded(true); setHistoryLoading(false) }) } } }}
@@ -1017,38 +1021,52 @@ export default function Home() {
                     )}
                   </div>
 
-                  {/* Product rows */}
+                  {/* Product cards grid */}
                   <div style={{ ...card, padding:16 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
                       <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0 }}>
                         {historyDateFilter==='all' ? `All snapshots (${filtered.length} records)` : `Snapshot: ${new Date(historyDateFilter).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})} — ${filtered.length} products`}
                       </p>
                       <button onClick={() => exportCSV(filtered, `history-${historyDateFilter}.csv`)} style={{ background:'#1e2433', border:'1px solid #2a2f3e', color:'#8892a4', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:11 }}>⬇ Export CSV</button>
                     </div>
-                    {/* Table header */}
-                    <div style={{ display:'grid', gridTemplateColumns:'120px 1fr 80px 60px 60px 70px 60px', gap:8, padding:'6px 10px', background:'#0f1117', borderRadius:6, marginBottom:6 }}>
-                      {['Date','Product','Source','Price','Rating','Reviews','Type'].map(h => (
-                        <span key={h} style={{ color:'#4a5568', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.5px' }}>{h}</span>
-                      ))}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+                      {filtered.slice(0, 300).map((h: any, i: number) => {
+                        const cfg = SOURCE_CONFIG[h.source] || SOURCE_CONFIG.amazon
+                        return (
+                          <div key={h.id||i}
+                            style={{ ...card, padding:12, border:'1px solid #2a2f3e', cursor:'default', transition:'all .2s' }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor='#3b82f640'}
+                            onMouseLeave={e => e.currentTarget.style.borderColor='#2a2f3e'}>
+                            <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                              {h.image_url
+                                ? <img src={h.image_url} alt="" style={{ width:46,height:46,objectFit:'contain',borderRadius:6,background:'#fff',flexShrink:0,padding:2 }} onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
+                                : <div style={{ width:46,height:46,borderRadius:6,background:'#2a2f3e',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16 }}>🕯️</div>}
+                              <div style={{ flex:1, minWidth:0 }}>
+                                <div style={{ display:'flex', gap:3, marginBottom:3, flexWrap:'wrap' }}>
+                                  <span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:cfg.bg,color:cfg.color }}>{cfg.label}</span>
+                                  {h.candle_type&&<span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#8b5cf620',color:'#a78bfa' }}>{h.candle_type==='jar-container'?'Jar':h.candle_type==='multi-pack'?'Pack':h.candle_type==='tea-light'?'Tea':h.candle_type==='taper-pillar'?'Taper':h.candle_type==='reed-diffuser'?'Diffuser':h.candle_type}</span>}
+                                  {h.is_scented===true&&<span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#10b98120',color:'#34d399' }}>Scented</span>}
+                                  <span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#1e2433',color:'#4a5568' }}>📅 {h.scraped_at?.slice(0,10)}</span>
+                                </div>
+                                <p style={{ color:'#e2e8f0',fontSize:12,fontWeight:600,margin:'0 0 3px',lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical' as any }}>{h.product_name}</p>
+                                <div style={{ display:'flex',gap:5,flexWrap:'wrap',alignItems:'center' }}>
+                                  {h.brand&&<span style={{ color:'#60a5fa',fontSize:10,fontWeight:600 }}>{h.brand}</span>}
+                                  {h.scent_name&&<span style={{ color:'#c084fc',fontSize:10 }}>{h.scent_name}</span>}
+                                  {h.stars&&<span style={{ color:'#fbbf24',fontSize:10 }}>⭐ {h.stars}</span>}
+                                  {h.reviews_count>0&&<span style={{ color:'#8892a4',fontSize:10 }}>{h.reviews_count?.toLocaleString()} rev</span>}
+                                </div>
+                              </div>
+                              <div style={{ textAlign:'right',flexShrink:0 }}>
+                                {h.price&&<p style={{ color:'#10b981',fontSize:13,fontWeight:700,margin:0 }}>{UK_SOURCES.includes(h.source)?'£':'$'}{h.price}</p>}
+                                {h.price_per_oz&&<p style={{ color:'#f97316',fontSize:10,margin:'1px 0 0' }}>${h.price_per_oz}/oz</p>}
+                                {h.burn_hours&&<p style={{ color:'#06b6d4',fontSize:10,margin:'1px 0 0' }}>{h.burn_hours}h burn</p>}
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                    <div style={{ maxHeight:600, overflowY:'auto' }}>
-                      {filtered.slice(0,500).map((h, i) => (
-                        <div key={h.id||i} style={{ display:'grid', gridTemplateColumns:'120px 1fr 80px 60px 60px 70px 60px', gap:8, padding:'7px 10px', borderBottom:'1px solid #1e2433', alignItems:'center' }}
-                          onMouseEnter={e => (e.currentTarget.style.background='#1e2433')}
-                          onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
-                          <span style={{ color:'#8892a4', fontSize:10 }}>{h.scraped_at?.slice(0,10)}</span>
-                          <span style={{ color:'#e2e8f0', fontSize:11, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h.product_name}</span>
-                          <span style={{ fontSize:10 }}>
-                            <span style={{ background: SOURCE_CONFIG[h.source]?.color+'20', color: SOURCE_CONFIG[h.source]?.color, padding:'2px 6px', borderRadius:4, fontWeight:700, fontSize:9 }}>{SOURCE_CONFIG[h.source]?.icon} {SOURCE_DISPLAY_NAMES[h.source]?.split(' ')[0]||h.source}</span>
-                          </span>
-                          <span style={{ color:'#10b981', fontSize:11, fontWeight:700 }}>{h.price ? `$${h.price}` : '—'}</span>
-                          <span style={{ color:'#fbbf24', fontSize:11 }}>{h.stars ? `${h.stars}⭐` : '—'}</span>
-                          <span style={{ color:'#8892a4', fontSize:10 }}>{h.reviews_count ? h.reviews_count.toLocaleString() : '—'}</span>
-                          <span style={{ color:'#6b7280', fontSize:9 }}>{h.candle_type||'—'}</span>
-                        </div>
-                      ))}
-                      {filtered.length > 500 && <p style={{ color:'#4a5568', fontSize:11, textAlign:'center', padding:12 }}>Showing 500 of {filtered.length} — export CSV for full data</p>}
-                    </div>
+                    {filtered.length > 300 && <p style={{ color:'#4a5568', fontSize:11, textAlign:'center', padding:12 }}>Showing 300 of {filtered.length} — use date filter or export CSV for full data</p>}
                   </div>
                 </div>
               )
