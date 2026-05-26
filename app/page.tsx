@@ -353,9 +353,17 @@ export default function Home() {
   }, [historyData])
 
   const allTimeCount = useMemo(() => {
-    const seen = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
-    const uniqueFromHistory = historyData.filter((p:any) => !seen.has(`${p.product_name}||${p.source}`))
-    return allProducts.length + uniqueFromHistory.length
+    if (historyData.length === 0) return allProducts.length
+    // All unique products ever: dedupe history by product_name+source, then union with current
+    const historyUnique = new Map<string, any>()
+    historyData.forEach((p:any) => {
+      const key = `${p.product_name}||${p.source}`
+      if (!historyUnique.has(key)) historyUnique.set(key, p)
+    })
+    const currentKeys = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
+    let extra = 0
+    historyUnique.forEach((_, key) => { if (!currentKeys.has(key)) extra++ })
+    return allProducts.length + extra
   }, [allProducts, historyData])
 
   const analysisDataset = useMemo(() => {
@@ -507,7 +515,7 @@ export default function Home() {
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   {[
                     { key:'current', label:`📊 Current (${allProducts.length})`, desc:'Live deduplicated data' },
-                    { key:'alltime', label:`🗃️ All Time (${allTimeCount})`, desc:'Current + history combined' },
+                    { key:'alltime', label: historyLoading ? `🗃️ All Time (loading...)` : `🗃️ All Time (${allTimeCount})`, desc:'Current + history combined' },
                     ...snapshotDates.map(d => ({ key: d, label: `📅 ${d} (${historyData.filter((p:any)=>p.scraped_at?.slice(0,10)===d).length})`, desc: 'Specific snapshot' }))
                   ].map(opt => (
                     <button key={opt.key} onClick={()=>{ setAnalysisDataSource(opt.key) }}
