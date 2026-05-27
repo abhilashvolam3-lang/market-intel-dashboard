@@ -73,7 +73,7 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ answer: 'Database error: ' + error.message })
 
     const all = products || []
-    const sources = [...new Set(all.map(p => p.source).filter(Boolean))]
+    const sources = Array.from(new Set(all.map(p => p.source).filter(Boolean)))
 
     const sourceStats = sources.map(src => {
       const ps = all.filter(p => p.source === src)
