@@ -156,6 +156,9 @@ export default function Home() {
   const [historyLoading, setHistoryLoading]     = useState(false)
   const [historyLoaded, setHistoryLoaded]       = useState(false)
   const [historyDateFilter, setHistoryDateFilter] = useState('all')
+  const [historySubTab, setHistorySubTab] = useState<'runs'|'trends'>('runs')
+  const [priceTrackerSearch, setPriceTrackerSearch] = useState('')
+  const [priceTrackerSelected, setPriceTrackerSelected] = useState<any>(null)
   const [analysisDataSource, setAnalysisDataSource] = useState<'current'|'alltime'|string>('current')
   const [analysisProducts, setAnalysisProducts] = useState<any[]>([])
 
@@ -992,92 +995,239 @@ export default function Home() {
               <div style={{ ...card, padding:40, textAlign:'center' }}>
                 <p style={{ fontSize:32, margin:'0 0 12px' }}>🕰️</p>
                 <p style={{ color:'#fff', fontSize:14, fontWeight:700, margin:'0 0 8px' }}>No history snapshots yet</p>
-                <p style={{ color:'#8892a4', fontSize:12 }}>History is captured automatically every weekly scrape run. Check back after the next sync.</p>
+                <p style={{ color:'#8892a4', fontSize:12 }}>History is captured automatically every weekly scrape run.</p>
               </div>
             )}
             {!historyLoading && historyData.length > 0 && (() => {
-              // group by scraped_at date
-              const dates = Array.from(new Set(historyData.map(h => h.scraped_at?.slice(0,10)))).sort().reverse()
-              const filtered = historyDateFilter === 'all' ? historyData : historyData.filter(h => h.scraped_at?.slice(0,10) === historyDateFilter)
-              const byDateSource = dates.map(date => {
-                const rows = historyData.filter(h => h.scraped_at?.slice(0,10) === date)
-                const bySource = Object.keys(SOURCE_CONFIG).map(src => ({ src, count: rows.filter(r => r.source === src).length })).filter(d => d.count > 0)
-                return { date, total: rows.length, bySource }
-              })
+              const dates = Array.from(new Set(historyData.map((h:any) => h.scraped_at?.slice(0,10)))).filter(Boolean).sort().reverse() as string[]
+
               return (
                 <div>
-                  {/* Snapshot timeline summary */}
-                  <div style={{ ...card, padding:20, marginBottom:16 }}>
-                    <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:'0 0 14px' }}>📅 Snapshot Timeline — {dates.length} run{dates.length!==1?'s':''} captured</p>
-                    <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                      {byDateSource.map(({ date, total, bySource }) => (
-                        <div key={date}
-                          onClick={() => setHistoryDateFilter(historyDateFilter === date ? 'all' : date)}
-                          style={{ background: historyDateFilter === date ? '#3b82f620' : '#0f1117', border: `1px solid ${historyDateFilter === date ? '#3b82f6' : '#2a2f3e'}`, borderRadius:10, padding:'10px 14px', cursor:'pointer', minWidth:160, transition:'all .2s' }}>
-                          <p style={{ color: historyDateFilter===date ? '#93c5fd' : '#8892a4', fontSize:10, fontWeight:700, margin:'0 0 4px' }}>{new Date(date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</p>
-                          <p style={{ color:'#fff', fontSize:20, fontWeight:800, margin:'0 0 6px' }}>{total}</p>
-                          <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
-                            {bySource.map(({ src, count }) => (
-                              <span key={src} style={{ fontSize:9, background: SOURCE_CONFIG[src]?.color+'25', color: SOURCE_CONFIG[src]?.color, padding:'1px 5px', borderRadius:4, fontWeight:700 }}>
-                                {SOURCE_DISPLAY_NAMES[src]?.split(' ')[0]} {count}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {historyDateFilter !== 'all' && (
-                      <button onClick={() => setHistoryDateFilter('all')} style={{ marginTop:12, background:'transparent', border:'1px solid #2a2f3e', color:'#8892a4', borderRadius:6, padding:'4px 12px', cursor:'pointer', fontSize:11 }}>✕ Clear filter</button>
-                    )}
+                  {/* Sub-tab switcher */}
+                  <div style={{ display:'flex', gap:4, marginBottom:16, background:'#1e2433', borderRadius:10, padding:4, width:'fit-content' }}>
+                    <button onClick={()=>setHistorySubTab('runs')} style={{ padding:'8px 20px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:600, background:historySubTab==='runs'?'#3b82f6':'transparent', color:historySubTab==='runs'?'#fff':'#8892a4', transition:'all .2s' }}>📅 Runs ({dates.length})</button>
+                    <button onClick={()=>setHistorySubTab('trends')} style={{ padding:'8px 20px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:600, background:historySubTab==='trends'?'#3b82f6':'transparent', color:historySubTab==='trends'?'#fff':'#8892a4', transition:'all .2s' }}>📈 Trend Analysis</button>
                   </div>
 
-                  {/* Product cards grid */}
-                  <div style={{ ...card, padding:16 }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
-                      <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0 }}>
-                        {historyDateFilter==='all' ? `All snapshots (${filtered.length} records)` : `Snapshot: ${new Date(historyDateFilter).toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})} — ${filtered.length} products`}
-                      </p>
-                      <button onClick={() => exportCSV(filtered, `history-${historyDateFilter}.csv`)} style={{ background:'#1e2433', border:'1px solid #2a2f3e', color:'#8892a4', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:11 }}>⬇ Export CSV</button>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
-                      {filtered.slice(0, 300).map((h: any, i: number) => {
-                        const cfg = SOURCE_CONFIG[h.source] || SOURCE_CONFIG.amazon
-                        return (
-                          <div key={h.id||i}
-                            style={{ ...card, padding:12, border:'1px solid #2a2f3e', cursor:'default', transition:'all .2s' }}
-                            onMouseEnter={e => e.currentTarget.style.borderColor='#3b82f640'}
-                            onMouseLeave={e => e.currentTarget.style.borderColor='#2a2f3e'}>
-                            <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
-                              {h.image_url
-                                ? <img src={h.image_url} alt="" style={{ width:46,height:46,objectFit:'contain',borderRadius:6,background:'#fff',flexShrink:0,padding:2 }} onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
-                                : <div style={{ width:46,height:46,borderRadius:6,background:'#2a2f3e',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16 }}>🕯️</div>}
-                              <div style={{ flex:1, minWidth:0 }}>
-                                <div style={{ display:'flex', gap:3, marginBottom:3, flexWrap:'wrap' }}>
-                                  <span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:cfg.bg,color:cfg.color }}>{cfg.label}</span>
-                                  {h.candle_type&&<span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#8b5cf620',color:'#a78bfa' }}>{h.candle_type==='jar-container'?'Jar':h.candle_type==='multi-pack'?'Pack':h.candle_type==='tea-light'?'Tea':h.candle_type==='taper-pillar'?'Taper':h.candle_type==='reed-diffuser'?'Diffuser':h.candle_type}</span>}
-                                  {h.is_scented===true&&<span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#10b98120',color:'#34d399' }}>Scented</span>}
-                                  <span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#1e2433',color:'#4a5568' }}>📅 {h.scraped_at?.slice(0,10)}</span>
-                                </div>
-                                <p style={{ color:'#e2e8f0',fontSize:12,fontWeight:600,margin:'0 0 3px',lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical' as any }}>{h.product_name}</p>
-                                <div style={{ display:'flex',gap:5,flexWrap:'wrap',alignItems:'center' }}>
-                                  {h.brand&&<span style={{ color:'#60a5fa',fontSize:10,fontWeight:600 }}>{h.brand}</span>}
-                                  {h.scent_name&&<span style={{ color:'#c084fc',fontSize:10 }}>{h.scent_name}</span>}
-                                  {h.stars&&<span style={{ color:'#fbbf24',fontSize:10 }}>⭐ {h.stars}</span>}
-                                  {h.reviews_count>0&&<span style={{ color:'#8892a4',fontSize:10 }}>{h.reviews_count?.toLocaleString()} rev</span>}
-                                </div>
-                              </div>
-                              <div style={{ textAlign:'right',flexShrink:0 }}>
-                                {h.price&&<p style={{ color:'#10b981',fontSize:13,fontWeight:700,margin:0 }}>{UK_SOURCES.includes(h.source)?'£':'$'}{h.price}</p>}
-                                {h.price_per_oz&&<p style={{ color:'#f97316',fontSize:10,margin:'1px 0 0' }}>${h.price_per_oz}/oz</p>}
-                                {h.burn_hours&&<p style={{ color:'#06b6d4',fontSize:10,margin:'1px 0 0' }}>{h.burn_hours}h burn</p>}
+                  {/* ── RUNS SUB-TAB ── */}
+                  {historySubTab === 'runs' && (() => {
+                    const filtered = historyDateFilter === 'all' ? historyData : historyData.filter((h:any) => h.scraped_at?.slice(0,10) === historyDateFilter)
+                    const byDateSource = dates.map(date => {
+                      const rows = historyData.filter((h:any) => h.scraped_at?.slice(0,10) === date)
+                      const bySource = Object.keys(SOURCE_CONFIG).map(src => ({ src, count: rows.filter((r:any) => r.source === src).length })).filter(d => d.count > 0)
+                      return { date, total: rows.length, bySource }
+                    })
+                    return (
+                      <div>
+                        {/* Run selector cards */}
+                        <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:16 }}>
+                          <div onClick={() => setHistoryDateFilter('all')}
+                            style={{ background: historyDateFilter==='all'?'#3b82f620':'#0f1117', border:`1px solid ${historyDateFilter==='all'?'#3b82f6':'#2a2f3e'}`, borderRadius:10, padding:'10px 16px', cursor:'pointer', transition:'all .2s' }}>
+                            <p style={{ color: historyDateFilter==='all'?'#93c5fd':'#8892a4', fontSize:10, fontWeight:700, margin:'0 0 2px' }}>All Runs</p>
+                            <p style={{ color:'#fff', fontSize:18, fontWeight:800, margin:0 }}>{historyData.length}</p>
+                            <p style={{ color:'#4a5568', fontSize:9, margin:'2px 0 0' }}>total records</p>
+                          </div>
+                          {byDateSource.map(({ date, total, bySource }) => (
+                            <div key={date} onClick={() => setHistoryDateFilter(historyDateFilter===date?'all':date)}
+                              style={{ background: historyDateFilter===date?'#3b82f620':'#0f1117', border:`1px solid ${historyDateFilter===date?'#3b82f6':'#2a2f3e'}`, borderRadius:10, padding:'10px 14px', cursor:'pointer', minWidth:160, transition:'all .2s' }}>
+                              <p style={{ color: historyDateFilter===date?'#93c5fd':'#8892a4', fontSize:10, fontWeight:700, margin:'0 0 2px' }}>{new Date(date+'T00:00:00').toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'})}</p>
+                              <p style={{ color:'#fff', fontSize:20, fontWeight:800, margin:'0 0 4px' }}>{total} <span style={{ color:'#4a5568', fontSize:10, fontWeight:400 }}>products</span></p>
+                              <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
+                                {bySource.map(({ src, count }) => (
+                                  <span key={src} style={{ fontSize:9, background: SOURCE_CONFIG[src]?.color+'25', color: SOURCE_CONFIG[src]?.color, padding:'1px 5px', borderRadius:4, fontWeight:700 }}>
+                                    {SOURCE_DISPLAY_NAMES[src]?.split(' ')[0]} {count}
+                                  </span>
+                                ))}
                               </div>
                             </div>
+                          ))}
+                        </div>
+
+                        {/* Product cards grid */}
+                        <div style={{ ...card, padding:16 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
+                            <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:0 }}>
+                              {historyDateFilter==='all' ? `All runs (${filtered.length} records)` : `Run: ${new Date(historyDateFilter+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})} — ${filtered.length} products`}
+                            </p>
+                            <button onClick={() => exportCSV(filtered, `history-${historyDateFilter}.csv`)} style={{ background:'#1e2433', border:'1px solid #2a2f3e', color:'#8892a4', borderRadius:6, padding:'5px 12px', cursor:'pointer', fontSize:11 }}>⬇ Export CSV</button>
                           </div>
-                        )
-                      })}
-                    </div>
-                    {filtered.length > 300 && <p style={{ color:'#4a5568', fontSize:11, textAlign:'center', padding:12 }}>Showing 300 of {filtered.length} — use date filter or export CSV for full data</p>}
-                  </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+                            {filtered.slice(0, 300).map((h: any, i: number) => {
+                              const cfg = SOURCE_CONFIG[h.source] || SOURCE_CONFIG.amazon
+                              return (
+                                <div key={h.id||i} style={{ ...card, padding:12, border:'1px solid #2a2f3e', transition:'all .2s' }}
+                                  onMouseEnter={e => e.currentTarget.style.borderColor='#3b82f640'}
+                                  onMouseLeave={e => e.currentTarget.style.borderColor='#2a2f3e'}>
+                                  <div style={{ display:'flex', gap:10, alignItems:'flex-start' }}>
+                                    {h.image_url
+                                      ? <img src={h.image_url} alt="" style={{ width:46,height:46,objectFit:'contain',borderRadius:6,background:'#fff',flexShrink:0,padding:2 }} onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
+                                      : <div style={{ width:46,height:46,borderRadius:6,background:'#2a2f3e',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:16 }}>🕯️</div>}
+                                    <div style={{ flex:1, minWidth:0 }}>
+                                      <div style={{ display:'flex', gap:3, marginBottom:3, flexWrap:'wrap' }}>
+                                        <span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:cfg.bg,color:cfg.color }}>{cfg.label}</span>
+                                        {h.candle_type&&<span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#8b5cf620',color:'#a78bfa' }}>{h.candle_type==='jar-container'?'Jar':h.candle_type==='multi-pack'?'Pack':h.candle_type==='tea-light'?'Tea':h.candle_type==='taper-pillar'?'Taper':h.candle_type==='reed-diffuser'?'Diffuser':h.candle_type}</span>}
+                                        {h.is_scented===true&&<span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#10b98120',color:'#34d399' }}>Scented</span>}
+                                        <span style={{ fontSize:9,fontWeight:700,padding:'1px 5px',borderRadius:3,background:'#1e2433',color:'#4a5568' }}>📅 {h.scraped_at?.slice(0,10)}</span>
+                                      </div>
+                                      <p style={{ color:'#e2e8f0',fontSize:12,fontWeight:600,margin:'0 0 3px',lineHeight:1.3,overflow:'hidden',textOverflow:'ellipsis',display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical' as any }}>{h.product_name}</p>
+                                      <div style={{ display:'flex',gap:5,flexWrap:'wrap',alignItems:'center' }}>
+                                        {h.brand&&<span style={{ color:'#60a5fa',fontSize:10,fontWeight:600 }}>{h.brand}</span>}
+                                        {h.scent_name&&<span style={{ color:'#c084fc',fontSize:10 }}>{h.scent_name}</span>}
+                                        {h.stars&&<span style={{ color:'#fbbf24',fontSize:10 }}>⭐ {h.stars}</span>}
+                                        {h.reviews_count>0&&<span style={{ color:'#8892a4',fontSize:10 }}>{h.reviews_count?.toLocaleString()} rev</span>}
+                                      </div>
+                                    </div>
+                                    <div style={{ textAlign:'right',flexShrink:0 }}>
+                                      {h.price&&<p style={{ color:'#10b981',fontSize:13,fontWeight:700,margin:0 }}>{UK_SOURCES.includes(h.source)?'£':'$'}{h.price}</p>}
+                                      {h.price_per_oz&&<p style={{ color:'#f97316',fontSize:10,margin:'1px 0 0' }}>${h.price_per_oz}/oz</p>}
+                                      {h.burn_hours&&<p style={{ color:'#06b6d4',fontSize:10,margin:'1px 0 0' }}>{h.burn_hours}h burn</p>}
+                                    </div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                          {filtered.length > 300 && <p style={{ color:'#4a5568', fontSize:11, textAlign:'center', padding:12 }}>Showing 300 of {filtered.length} — export CSV for full data</p>}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
+                  {/* ── TRENDS SUB-TAB ── */}
+                  {historySubTab === 'trends' && (() => {
+                    const uniqueProducts = Array.from(
+                      new Map(historyData.map((h:any) => [`${h.product_name}||${h.source}`, h])).values()
+                    ).filter((h:any) => h.price)
+
+                    const searchResults = priceTrackerSearch.length > 1
+                      ? uniqueProducts.filter((h:any) =>
+                          h.product_name?.toLowerCase().includes(priceTrackerSearch.toLowerCase()) ||
+                          h.brand?.toLowerCase().includes(priceTrackerSearch.toLowerCase())
+                        ).slice(0, 8)
+                      : []
+
+                    const priceHistory = priceTrackerSelected
+                      ? historyData
+                          .filter((h:any) => h.product_name === priceTrackerSelected.product_name && h.source === priceTrackerSelected.source)
+                          .sort((a:any, b:any) => a.scraped_at?.localeCompare(b.scraped_at))
+                      : []
+
+                    const renderChart = (metric: 'price'|'stars'|'reviews_count', color: string, label: string, prefix='', suffix='') => {
+                      const data = priceHistory.filter((h:any) => h[metric] != null)
+                      if (data.length < 1) return null
+                      const values = data.map((h:any) => Number(h[metric]))
+                      const minV = Math.min(...values), maxV = Math.max(...values)
+                      const range = maxV - minV || 1
+                      const W = 560, H = 140, PAD = 44
+                      const points = data.map((h:any, i:number) => ({
+                        x: PAD + (i / Math.max(data.length-1,1)) * (W-PAD*2),
+                        y: PAD + ((maxV - Number(h[metric])) / range) * (H-PAD*2),
+                        val: Number(h[metric]),
+                        date: h.scraped_at?.slice(0,10)
+                      }))
+                      const pathD = points.map((p,i) => `${i===0?'M':'L'} ${p.x} ${p.y}`).join(' ')
+                      const areaD = `${pathD} L ${points[points.length-1].x} ${H-PAD} L ${points[0].x} ${H-PAD} Z`
+                      return (
+                        <div style={{ ...card, padding:16, marginBottom:12 }}>
+                          <p style={{ color:'#8892a4', fontSize:11, fontWeight:700, textTransform:'uppercase', letterSpacing:'.8px', margin:'0 0 10px' }}>{label}</p>
+                          <div style={{ overflowX:'auto' }}>
+                            <svg width={W} height={H}>
+                              {[0,0.5,1].map((t,i) => {
+                                const y = PAD + t*(H-PAD*2)
+                                const val = maxV - t*range
+                                return <g key={i}>
+                                  <line x1={PAD} y1={y} x2={W-PAD} y2={y} stroke="#2a2f3e" strokeWidth={1} strokeDasharray="4,4"/>
+                                  <text x={PAD-4} y={y+4} fill="#4a5568" fontSize={9} textAnchor="end">{prefix}{val.toFixed(1)}{suffix}</text>
+                                </g>
+                              })}
+                              <path d={areaD} fill={color+'15'}/>
+                              <path d={pathD} fill="none" stroke={color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round"/>
+                              {points.map((p,i) => (
+                                <g key={i}>
+                                  <circle cx={p.x} cy={p.y} r={5} fill={color} stroke="#0f1117" strokeWidth={2}/>
+                                  <text x={p.x} y={p.y-10} fill="#fff" fontSize={9} textAnchor="middle" fontWeight="bold">{prefix}{p.val}{suffix}</text>
+                                  <text x={p.x} y={H-PAD+14} fill="#8892a4" fontSize={9} textAnchor="middle">{p.date}</text>
+                                </g>
+                              ))}
+                            </svg>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    const currency = priceTrackerSelected && UK_SOURCES.includes(priceTrackerSelected.source) ? '£' : '$'
+                    const priceChange = priceHistory.length > 1 ? priceHistory[priceHistory.length-1].price - priceHistory[0].price : 0
+
+                    return (
+                      <div>
+                        {/* Search */}
+                        <div style={{ ...card, padding:20, marginBottom:16 }}>
+                          <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:'0 0 12px' }}>📈 Trend Analysis — Track a product across all runs</p>
+                          <div style={{ position:'relative' }}>
+                            <input
+                              placeholder="Search product by name or brand..."
+                              value={priceTrackerSearch}
+                              onChange={e => { setPriceTrackerSearch(e.target.value); setPriceTrackerSelected(null) }}
+                              style={{ width:'100%', background:'#0f1117', border:'1px solid #2a2f3e', borderRadius:8, padding:'10px 14px', color:'#fff', fontSize:12, outline:'none', boxSizing:'border-box' as any }}
+                            />
+                            {searchResults.length > 0 && (
+                              <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'#1e2433', border:'1px solid #2a2f3e', borderRadius:8, zIndex:10, marginTop:4, maxHeight:240, overflowY:'auto' }}>
+                                {searchResults.map((h:any, i:number) => {
+                                  const cfg = SOURCE_CONFIG[h.source] || SOURCE_CONFIG.amazon
+                                  return (
+                                    <div key={i} onClick={() => { setPriceTrackerSelected(h); setPriceTrackerSearch(h.product_name) }}
+                                      style={{ padding:'9px 14px', cursor:'pointer', borderBottom:'1px solid #2a2f3e', display:'flex', gap:10, alignItems:'center' }}
+                                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background='#2a2f3e'}
+                                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background='transparent'}>
+                                      <span style={{ background:cfg.bg, color:cfg.color, fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3, flexShrink:0 }}>{cfg.label}</span>
+                                      <span style={{ color:'#e2e8f0', fontSize:12, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h.product_name}</span>
+                                      {h.price && <span style={{ color:'#10b981', fontSize:11, fontWeight:700, flexShrink:0 }}>{UK_SOURCES.includes(h.source)?'£':'$'}{h.price}</span>}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <p style={{ color:'#4a5568', fontSize:10, margin:'8px 0 0' }}>{uniqueProducts.length} products available · {dates.length} runs to compare</p>
+                        </div>
+
+                        {/* Charts */}
+                        {priceTrackerSelected ? (
+                          <div>
+                            {/* Product header */}
+                            <div style={{ ...card, padding:16, marginBottom:12, display:'flex', gap:12, alignItems:'center' }}>
+                              {priceTrackerSelected.image_url && <img src={priceTrackerSelected.image_url} alt="" style={{ width:52, height:52, objectFit:'contain', borderRadius:8, background:'#fff', padding:2 }}/>}
+                              <div style={{ flex:1 }}>
+                                <p style={{ color:'#fff', fontSize:13, fontWeight:700, margin:'0 0 4px' }}>{priceTrackerSelected.product_name}</p>
+                                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                                  <span style={{ background:SOURCE_CONFIG[priceTrackerSelected.source]?.bg, color:SOURCE_CONFIG[priceTrackerSelected.source]?.color, fontSize:9, fontWeight:700, padding:'1px 6px', borderRadius:3 }}>{SOURCE_CONFIG[priceTrackerSelected.source]?.label}</span>
+                                  {priceTrackerSelected.brand && <span style={{ color:'#60a5fa', fontSize:11 }}>{priceTrackerSelected.brand}</span>}
+                                  <span style={{ color:'#4a5568', fontSize:10 }}>{priceHistory.length} data points across {dates.length} runs</span>
+                                </div>
+                              </div>
+                              {priceHistory.length > 1 && (
+                                <div style={{ textAlign:'right' }}>
+                                  <p style={{ color: priceChange > 0 ? '#ef4444' : priceChange < 0 ? '#10b981' : '#8892a4', fontSize:16, fontWeight:800, margin:0 }}>
+                                    {priceChange > 0 ? '↑' : priceChange < 0 ? '↓' : '→'} {currency}{Math.abs(priceChange).toFixed(2)}
+                                  </p>
+                                  <p style={{ color:'#4a5568', fontSize:10, margin:'2px 0 0' }}>price change</p>
+                                </div>
+                              )}
+                            </div>
+
+                            {renderChart('price', '#3b82f6', 'Price History', currency)}
+                            {renderChart('stars', '#fbbf24', 'Rating History', '', ' ⭐')}
+                            {renderChart('reviews_count', '#10b981', 'Review Count History')}
+                          </div>
+                        ) : (
+                          <div style={{ ...card, padding:40, textAlign:'center' }}>
+                            <p style={{ fontSize:28, margin:'0 0 8px' }}>🔍</p>
+                            <p style={{ color:'#8892a4', fontSize:12 }}>Search and select a product above to see price, rating and review trends across all scrape runs</p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </div>
               )
             })()}
