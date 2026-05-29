@@ -494,62 +494,57 @@ export default function Home() {
           </p>
         </div>
 
-        {/* KPI ROW */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:8, marginBottom:12 }}>
-          {[
-            { label:'Products Tracked', value:displayProducts.length.toString(), sub: dashboardView==='latest' ? `Latest run · ${latestRunDate||''}` : `All time · ${allTimeProducts.length} unique`, color:'#3b82f6' },
-            { label:'Total Reviews',    value:displayProducts.reduce((a:number,b:any)=>a+(b.reviews_count||0),0).toLocaleString(), sub: '📦 Amazon data only', color:'#8b5cf6' },
-            { label:'Avg Rating',       value:(()=>{ const v=displayProducts.filter((p:any)=>p.stars).map((p:any)=>p.stars); return v.length?avg(v).toFixed(1)+' ⭐':'N/A' })(), sub:'📦 Amazon data only', color:'#f59e0b' },
-            { label:'Avg Price/oz',     value:(()=>{ const v=displayProducts.filter((p:any)=>p.price_per_oz).map((p:any)=>p.price_per_oz); return v.length?'$'+avg(v).toFixed(2)+'/oz':'N/A' })(), sub:'📦 Amazon data only', color:'#f97316' },
-            { label:'Avg Burn Time',    value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_hours).map((p:any)=>p.burn_hours); return v.length?Math.round(avg(v))+' hrs':'N/A' })(), sub:'📦 Amazon data only', color:'#ef4444' },
-            { label:'Avg Burn/oz',      value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_per_oz).map((p:any)=>p.burn_per_oz); return v.length?avg(v).toFixed(1)+' hrs/oz':'N/A' })(), sub:'📦 Amazon data only', color:'#06b6d4' },
-          ].map((m,i) => (
-            <div key={i} style={{ ...card, padding:'10px', borderTop:`3px solid ${m.color}`, transition:'transform .2s' }}
-              onMouseEnter={e=>(e.currentTarget.style.transform='translateY(-2px)')}
-              onMouseLeave={e=>(e.currentTarget.style.transform='translateY(0)')}>
-              <p style={{ color:'#8892a4', fontSize:8, fontWeight:700, textTransform:'uppercase', letterSpacing:'.8px', margin:'0 0 4px' }}>{m.label}</p>
-              <p style={{ color:'#fff', fontSize:15, fontWeight:800, margin:'0 0 2px' }}>{m.value}</p>
-              <p style={{ color:'#8892a4', fontSize:8, margin:0 }}>{m.sub}</p>
+        {/* KPI ROW — Products Tracked only */}
+        <div style={{ ...card, padding:16, marginBottom:12 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12, flexWrap:'wrap', gap:8 }}>
+            <div>
+              <p style={{ color:'#8892a4', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'.8px', margin:'0 0 4px' }}>Products Tracked</p>
+              <p style={{ color:'#fff', fontSize:28, fontWeight:800, margin:0 }}>{displayProducts.length} <span style={{ color:'#4a5568', fontSize:12, fontWeight:400 }}>products</span></p>
+              <p style={{ color:'#4a5568', fontSize:10, margin:'2px 0 0' }}>{dashboardView==='latest' ? `Latest run · ${latestRunDate||''}` : `All time · ${allTimeProducts.length} unique products`}</p>
             </div>
-          ))}
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {Object.keys(SOURCE_CONFIG).map(src => {
+                const count = displayBySource(src).length
+                if (count === 0) return null
+                const cfg = SOURCE_CONFIG[src]
+                const pct = ((count / displayProducts.length) * 100).toFixed(0)
+                return (
+                  <div key={src} style={{ background:'#0f1117', border:`1px solid ${cfg.color}30`, borderRadius:8, padding:'6px 12px', textAlign:'center', minWidth:70 }}>
+                    <p style={{ color:cfg.color, fontSize:9, fontWeight:700, margin:'0 0 2px' }}>{cfg.icon} {SOURCE_DISPLAY_NAMES[src].split(' ')[0]}</p>
+                    <p style={{ color:'#fff', fontSize:16, fontWeight:800, margin:0 }}>{count}</p>
+                    <p style={{ color:'#4a5568', fontSize:9, margin:'1px 0 0' }}>{pct}%</p>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+          {/* Type breakdown bar */}
+          <div style={{ display:'flex', gap:0, height:6, borderRadius:4, overflow:'hidden' }}>
+            {PRODUCT_TYPES.filter(pt=>pt.key!=='all').map((pt, i) => {
+              const count = displayProducts.filter((p:any)=>(p.candle_type||'other')===pt.key).length
+              const pct = displayProducts.length > 0 ? (count/displayProducts.length)*100 : 0
+              const colors = ['#3b82f6','#8b5cf6','#10b981','#f97316','#ec4899','#fbbf24']
+              if (count === 0) return null
+              return <div key={pt.key} style={{ width:`${pct}%`, background:colors[i%6], transition:'width .5s' }} title={`${pt.label}: ${count}`}/>
+            })}
+          </div>
+          <div style={{ display:'flex', gap:8, marginTop:6, flexWrap:'wrap' }}>
+            {PRODUCT_TYPES.filter(pt=>pt.key!=='all').map((pt, i) => {
+              const count = displayProducts.filter((p:any)=>(p.candle_type||'other')===pt.key).length
+              const pct = displayProducts.length > 0 ? ((count/displayProducts.length)*100).toFixed(0) : '0'
+              const colors = ['#3b82f6','#8b5cf6','#10b981','#f97316','#ec4899','#fbbf24']
+              if (count === 0) return null
+              return (
+                <span key={pt.key} style={{ fontSize:9, color:'#8892a4', display:'flex', gap:4, alignItems:'center' }}>
+                  <span style={{ width:6, height:6, borderRadius:2, background:colors[i%6], display:'inline-block' }}/>
+                  {pt.label} <span style={{ color:'#fff', fontWeight:700 }}>{count}</span> <span style={{ color:'#4a5568' }}>({pct}%)</span>
+                </span>
+              )
+            })}
+          </div>
         </div>
 
-        {/* TYPE COUNT VERIFICATION ROW */}
-        <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap', alignItems:'center', background:'#1e2433', borderRadius:10, padding:'8px 14px' }}>
-          <span style={{ color:'#4a5568', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.6px', marginRight:4 }}>By Type:</span>
-          {PRODUCT_TYPES.filter(pt=>pt.key!=='all').map(pt=>{
-            const count = displayProducts.filter((p:any)=>(p.candle_type||'other')===pt.key).length
-            const pct   = displayProducts.length > 0 ? ((count/displayProducts.length)*100).toFixed(0) : '0'
-            if (count === 0) return null
-            return (
-              <span key={pt.key} style={{ fontSize:10, padding:'3px 9px', borderRadius:20, background:'#0f1117', border:'1px solid #2a2f3e', color:'#e2e8f0', display:'flex', gap:5, alignItems:'center' }}>
-                <span style={{ color:'#8892a4' }}>{pt.label}</span>
-                <span style={{ color:'#fff', fontWeight:700 }}>{count}</span>
-                <span style={{ color:'#4a5568' }}>{pct}%</span>
-              </span>
-            )
-          })}
-          <span style={{ marginLeft:'auto', fontSize:10, color:'#4a5568' }}>
-            Total: <span style={{ color:'#10b981', fontWeight:700 }}>{displayProducts.length}</span>
-          </span>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(9,1fr)', gap:8, marginBottom:16 }}>
-          {Object.keys(SOURCE_CONFIG).map(src => {
-            const cfg = SOURCE_CONFIG[src]
-            const count = displayBySource(src).length
-            if (count === 0) return null
-            return (
-              <div key={src} onClick={()=>{setActiveTab('data');setActiveSource(src as SourceKey)}}
-                style={{ ...card, padding:'8px 10px', border:`1px solid ${cfg.color}25`, cursor:'pointer', transition:'all .2s' }}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor=cfg.color;e.currentTarget.style.transform='translateY(-1px)'}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor=cfg.color+'25';e.currentTarget.style.transform='translateY(0)'}}>
-                <p style={{ color:'#8892a4', fontSize:8, fontWeight:700, textTransform:'uppercase', margin:'0 0 2px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cfg.icon} {SOURCE_DISPLAY_NAMES[src]}</p>
-                <p style={{ color:'#6b7280', fontSize:8, margin:'0 0 3px' }}>{cfg.tier}</p>
-                <p style={{ color:'#fff', fontSize:18, fontWeight:800, margin:0 }}>{count}</p>
-              </div>
-            )
-          })}
-        </div>
+        
 
         {/* TABS */}
         <div style={{ display:'flex', gap:4, marginBottom:16, background:'#1e2433', borderRadius:12, padding:4, width:'fit-content', flexWrap:'wrap' }}>
