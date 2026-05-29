@@ -350,44 +350,10 @@ export default function Home() {
     ? allProducts.filter(p => filterProduct === 'all' || p.candle_type === filterProduct).length
     : allProducts.filter(p => p.source === filterCompany && (filterProduct === 'all' || p.candle_type === filterProduct)).length
 
-  // Compute the dataset used for AI analysis based on selected source
   const snapshotDates = useMemo(() => {
     const dates = [...new Set(historyData.map((p: any) => p.scraped_at?.slice(0,10)))].filter(Boolean).sort().reverse()
     return dates
   }, [historyData])
-
-  const allTimeCount = useMemo(() => {
-    console.log('allTimeCount recompute - allProducts:', allProducts.length, 'historyData:', historyData.length)
-    if (historyData.length === 0) return allProducts.length
-    // All unique products ever: dedupe history by product_name+source, then union with current
-    const historyUnique = new Map<string, any>()
-    historyData.forEach((p:any) => {
-      const key = `${p.product_name}||${p.source}`
-      if (!historyUnique.has(key)) historyUnique.set(key, p)
-    })
-    const currentKeys = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
-    let extra = 0
-    historyUnique.forEach((_, key) => { if (!currentKeys.has(key)) extra++ })
-    console.log('historyUnique size:', historyUnique.size, 'extra:', extra, 'total:', allProducts.length + extra)
-    return allProducts.length + extra
-  }, [allProducts, historyData])
-
-  const analysisDataset = useMemo(() => {
-    if (analysisDataSource === 'current') return latestRunProducts
-    if (analysisDataSource === 'alltime') return allTimeProducts
-    return historyData.filter((p:any) => p.scraped_at?.slice(0,10) === analysisDataSource)
-  }, [analysisDataSource, latestRunProducts, allTimeProducts, historyData])
-
-  const analysisFilteredCount = filterCompany === 'all'
-    ? analysisDataset.filter((p:any) => filterProduct === 'all' || p.candle_type === filterProduct).length
-    : analysisDataset.filter((p:any) => p.source === filterCompany && (filterProduct === 'all' || p.candle_type === filterProduct)).length
-
-  const filteredProducts = allProducts
-    .filter(p => activeSource === 'all' || p.source === activeSource)
-    .filter(p => activeCandleType === 'all' || p.candle_type === activeCandleType)
-    .filter(p => activeScentFilter === 'scented' ? p.is_scented === true : activeScentFilter === 'unscented' ? p.is_scented === false : true)
-    .filter(p => !searchTerm || p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand?.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0))
 
   // Latest run = most recent snapshot date from history
   const latestRunDate = useMemo(() => {
@@ -401,24 +367,38 @@ export default function Home() {
   }, [latestRunDate, historyData, allProducts])
 
   const allTimeProducts = useMemo(() => {
-    // Get unique products from history (deduped by product_name+source)
     const seen = new Set<string>()
     const result: any[] = []
-    // Prioritize live table values for metrics (reviews, ratings, price are more up to date)
     const liveMap = new Map(allProducts.map((p:any) => [`${p.product_name}||${p.source}`, p]))
     historyData.forEach((p:any) => {
       const key = `${p.product_name}||${p.source}`
       if (!seen.has(key)) {
         seen.add(key)
-        // Use live table version if available (has fresher metrics)
         result.push(liveMap.has(key) ? liveMap.get(key) : p)
       }
     })
     return result
   }, [allProducts, historyData])
 
+  const analysisDataset = useMemo(() => {
+    if (analysisDataSource === 'current') return latestRunProducts
+    if (analysisDataSource === 'alltime') return allTimeProducts
+    return historyData.filter((p:any) => p.scraped_at?.slice(0,10) === analysisDataSource)
+  }, [analysisDataSource, latestRunProducts, allTimeProducts, historyData])
+
+  const analysisFilteredCount = filterCompany === 'all'
+    ? analysisDataset.filter((p:any) => filterProduct === 'all' || p.candle_type === filterProduct).length
+    : analysisDataset.filter((p:any) => p.source === filterCompany && (filterProduct === 'all' || p.candle_type === filterProduct)).length
+
   const displayProducts = dashboardView === 'latest' ? latestRunProducts : allTimeProducts
   const displayBySource = (src: string) => displayProducts.filter((p:any) => p.source === src)
+
+  const filteredProducts = allProducts
+    .filter(p => activeSource === 'all' || p.source === activeSource)
+    .filter(p => activeCandleType === 'all' || p.candle_type === activeCandleType)
+    .filter(p => activeScentFilter === 'scented' ? p.is_scented === true : activeScentFilter === 'unscented' ? p.is_scented === false : true)
+    .filter(p => !searchTerm || p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand?.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0))
 
   if (loading) return (
     <div style={{ minHeight:'100vh', background:'#0f1117', display:'flex', alignItems:'center', justifyContent:'center' }}>
