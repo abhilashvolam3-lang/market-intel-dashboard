@@ -73,29 +73,53 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ answer: 'Database error: ' + error.message })
 
     const all = products || []
-    const sources = Array.from(new Set(all.map(p => p.source).filter(Boolean)))
+    const sources = Array.from(new Set(all.map((p: any) => p.source).filter(Boolean)))
 
-    const sourceStats = sources.map(src => {
-      const ps = all.filter(p => p.source === src)
+    // ── Dynamically compute available fields per source ──────────────────────
+    const sourceStats = sources.map((src: any) => {
+      const ps = all.filter((p: any) => p.source === src)
       const currency = getCurrency(src)
-      const prices   = ps.filter(p => p.price).map(p => p.price)
-      const stars    = ps.filter(p => p.stars).map(p => p.stars)
-      const reviews  = ps.filter(p => p.reviews_count).map(p => p.reviews_count)
-      const burnHz   = ps.filter(p => p.burn_hours).map(p => p.burn_hours)
-      const burnPoz  = ps.filter(p => p.burn_per_oz).map(p => p.burn_per_oz)
-      const pricePoz = ps.filter(p => p.price_per_oz).map(p => p.price_per_oz)
       const isUK = UK_SOURCES.includes(src)
-      return `${src.toUpperCase()} (${ps.length} products)${isUK ? ' [UK retailer, prices in GBP £]' : ' [US retailer, prices in USD $]'}:
+
+      const prices   = ps.filter((p: any) => p.price).map((p: any) => p.price)
+      const stars    = ps.filter((p: any) => p.stars).map((p: any) => p.stars)
+      const reviews  = ps.filter((p: any) => p.reviews_count).map((p: any) => p.reviews_count)
+      const burnHz   = ps.filter((p: any) => p.burn_hours).map((p: any) => p.burn_hours)
+      const burnPoz  = ps.filter((p: any) => p.burn_per_oz).map((p: any) => p.burn_per_oz)
+      const pricePoz = ps.filter((p: any) => p.price_per_oz).map((p: any) => p.price_per_oz)
+      const scents   = ps.filter((p: any) => p.scent_name).map((p: any) => p.scent_name)
+
+      // Dynamically build available fields note
+      const availableFields: string[] = ['price']
+      if (stars.length > 0) availableFields.push('ratings')
+      if (reviews.length > 0) availableFields.push('reviews')
+      if (burnHz.length > 0) availableFields.push('burn_hours')
+      if (burnPoz.length > 0) availableFields.push('burn_per_oz')
+      if (pricePoz.length > 0) availableFields.push('price_per_oz')
+      if (scents.length > 0) availableFields.push('scent_name')
+
+      const missingFields: string[] = []
+      if (stars.length === 0) missingFields.push('ratings')
+      if (reviews.length === 0) missingFields.push('reviews')
+      if (burnHz.length === 0) missingFields.push('burn_hours')
+      if (burnPoz.length === 0) missingFields.push('burn_per_oz')
+      if (pricePoz.length === 0) missingFields.push('price_per_oz')
+
+      return `${src.toUpperCase()} (${ps.length} products) ${isUK ? '[UK £ GBP]' : '[US $ USD]'}:
+  AVAILABLE DATA: ${availableFields.join(', ')}
+  ${missingFields.length > 0 ? `MISSING DATA (do NOT analyze or infer): ${missingFields.join(', ')}` : 'ALL fields available'}
   Price: min=${currency}${prices.length ? Math.min(...prices) : 'N/A'} max=${currency}${prices.length ? Math.max(...prices) : 'N/A'} avg=${currency}${round2(avg(prices))||'N/A'}
-  Stars: avg=${round2(avg(stars))||'N/A'} | Reviews total: ${reviews.reduce((a,b)=>a+b,0).toLocaleString()}
-  Burn hrs: avg=${round2(avg(burnHz))||'N/A'} | Burn/oz: avg=${round2(avg(burnPoz))||'N/A'}
-  Price/oz: avg=${currency}${round2(avg(pricePoz))||'N/A'}`
+  Stars: ${stars.length > 0 ? `avg=${round2(avg(stars))} (${stars.length} products have ratings)` : 'NO RATING DATA — do not analyze'}
+  Reviews: ${reviews.length > 0 ? `total=${reviews.reduce((a: number,b: number)=>a+b,0).toLocaleString()} (${reviews.length} products)` : 'NO REVIEW DATA — do not analyze'}
+  Burn/oz: ${burnPoz.length > 0 ? `avg=${round2(avg(burnPoz))} (${burnPoz.length} products)` : 'NO BURN DATA — do not analyze'}
+  Price/oz: ${pricePoz.length > 0 ? `avg=${currency}${round2(avg(pricePoz))} (${pricePoz.length} products)` : 'NO PRICE/OZ DATA — do not analyze'}
+  Scents: ${scents.length > 0 ? `${scents.length} products have scent data` : 'no scent data'}`
     }).join('\n\n')
 
     const top10 = [...all]
-      .sort((a,b) => (b.reviews_count||0) - (a.reviews_count||0))
+      .sort((a: any,b: any) => (b.reviews_count||0) - (a.reviews_count||0))
       .slice(0,10)
-      .map(p => {
+      .map((p: any) => {
         const currency = getCurrency(p.source)
         const parts = [`"${(p.product_name||'').slice(0,50)}"`]
         if (p.source)        parts.push(`src:${p.source}`)
@@ -112,7 +136,7 @@ export async function POST(req: Request) {
 
     const getTop5 = (sortFn: (a:any,b:any)=>number, filterFn?:(p:any)=>boolean) =>
       [...all].filter(filterFn||(() => true)).sort(sortFn).slice(0,5)
-        .map(p => {
+        .map((p: any) => {
           const currency = getCurrency(p.source)
           return `"${(p.product_name||'').slice(0,45)}" src:${p.source} ${currency}${p.price||'?'} ${p.stars||'?'}★ ${p.reviews_count||0}rev` +
             (p.burn_per_oz  ? ` ${p.burn_per_oz}h/oz` : '') +
@@ -120,54 +144,62 @@ export async function POST(req: Request) {
         })
         .join('\n')
 
-    const bestBurn     = getTop5((a,b)=>(b.burn_per_oz||0)-(a.burn_per_oz||0), p=>p.burn_per_oz)
-    const bestValue    = getTop5((a,b)=>(a.price_per_oz||999)-(b.price_per_oz||999), p=>p.price_per_oz)
-    const bestRated    = getTop5((a,b)=>(b.stars||0)-(a.stars||0), p=>p.stars)
-    const mostReviewed = getTop5((a,b)=>(b.reviews_count||0)-(a.reviews_count||0))
+    const bestBurn     = getTop5((a: any,b: any)=>(b.burn_per_oz||0)-(a.burn_per_oz||0), (p: any)=>p.burn_per_oz)
+    const bestValue    = getTop5((a: any,b: any)=>(a.price_per_oz||999)-(b.price_per_oz||999), (p: any)=>p.price_per_oz)
+    const bestRated    = getTop5((a: any,b: any)=>(b.stars||0)-(a.stars||0), (p: any)=>p.stars)
+    const mostReviewed = getTop5((a: any,b: any)=>(b.reviews_count||0)-(a.reviews_count||0))
 
     const scentMap: Record<string,number> = {}
-    all.forEach(p => { if (p.scent_name) scentMap[p.scent_name] = (scentMap[p.scent_name]||0)+1 })
+    all.forEach((p: any) => { if (p.scent_name) scentMap[p.scent_name] = (scentMap[p.scent_name]||0)+1 })
     const topScents = Object.entries(scentMap).sort((a,b)=>b[1]-a[1]).slice(0,10)
       .map(([s,c])=>`${s}(${c})`).join(', ')
 
     const brandMap: Record<string,number> = {}
-    all.forEach(p => { if (p.brand) brandMap[p.brand] = (brandMap[p.brand]||0)+1 })
+    all.forEach((p: any) => { if (p.brand) brandMap[p.brand] = (brandMap[p.brand]||0)+1 })
     const topBrands = Object.entries(brandMap).sort((a,b)=>b[1]-a[1]).slice(0,10)
       .map(([b,c])=>`${b}(${c})`).join(', ')
 
     const typeMap: Record<string,number> = {}
-    all.forEach(p => { if (p.candle_type) typeMap[p.candle_type] = (typeMap[p.candle_type]||0)+1 })
+    all.forEach((p: any) => { if (p.candle_type) typeMap[p.candle_type] = (typeMap[p.candle_type]||0)+1 })
     const typeBreakdown = Object.entries(typeMap).map(([t,c])=>`${t}:${c}`).join(', ')
 
-    const usBudget  = all.filter(p => p.price && !UK_SOURCES.includes(p.source) && p.price < 15).length
-    const usMid     = all.filter(p => p.price && !UK_SOURCES.includes(p.source) && p.price >= 15 && p.price < 35).length
-    const usPremium = all.filter(p => p.price && !UK_SOURCES.includes(p.source) && p.price >= 35).length
-    const ukBudget  = all.filter(p => p.price && UK_SOURCES.includes(p.source) && p.price < 10).length
-    const ukMid     = all.filter(p => p.price && UK_SOURCES.includes(p.source) && p.price >= 10 && p.price < 20).length
-    const ukPremium = all.filter(p => p.price && UK_SOURCES.includes(p.source) && p.price >= 20).length
+    const usBudget  = all.filter((p: any) => p.price && !UK_SOURCES.includes(p.source) && p.price < 15).length
+    const usMid     = all.filter((p: any) => p.price && !UK_SOURCES.includes(p.source) && p.price >= 15 && p.price < 35).length
+    const usPremium = all.filter((p: any) => p.price && !UK_SOURCES.includes(p.source) && p.price >= 35).length
+    const ukBudget  = all.filter((p: any) => p.price && UK_SOURCES.includes(p.source) && p.price < 10).length
+    const ukMid     = all.filter((p: any) => p.price && UK_SOURCES.includes(p.source) && p.price >= 10 && p.price < 20).length
+    const ukPremium = all.filter((p: any) => p.price && UK_SOURCES.includes(p.source) && p.price >= 20).length
 
     const filterNote = [
       sourceFilter !== 'all' ? `Source: ${sourceFilter} only` : '',
       categoryFilter !== 'all' ? `Category: ${categoryFilter} only` : ''
     ].filter(Boolean).join(', ')
 
-    const systemMsg = `You are a candle market intelligence analyst. Answer using ONLY the statistics and product data provided. Never invent numbers. Cite specific product names and sources when relevant. Be concise — max 200 words. IMPORTANT: ASDA and Primark are UK retailers — always use £ (GBP) for their prices. All other sources are US retailers — use $ (USD).`
+    const systemMsg = `You are a candle market intelligence analyst. 
+
+CRITICAL RULES:
+1. Answer using ONLY the statistics and product data provided. NEVER invent or assume numbers.
+2. Each source has different available data fields — ONLY analyze metrics marked as AVAILABLE for each source.
+3. If a source shows "MISSING DATA" for a metric, do NOT analyze, infer, or mention that metric for that source.
+4. When analyzing multiple sources, clearly state which source each insight applies to.
+5. ASDA and Primark are UK retailers — always use £ (GBP). All others use $ (USD).
+6. Be concise — max 250 words.
+7. If the question asks about a metric not available for a source, explicitly say "data not available for [source]".`
 
     const userMsg =
       (filterNote ? `ACTIVE FILTERS: ${filterNote}\n\n` : '') +
-      `DATASET: ${all.length} total products across ${sources.length} sources\n` +
-      `NOTE: ASDA and Primark are UK retailers (prices in £ GBP). All others are US retailers (prices in $ USD).\n\n` +
-      `PER-SOURCE STATISTICS:\n${sourceStats}\n\n` +
+      `DATASET: ${all.length} total products across ${sources.length} sources\n\n` +
+      `PER-SOURCE STATISTICS (with available/missing fields clearly marked):\n${sourceStats}\n\n` +
       `TYPE BREAKDOWN: ${typeBreakdown}\n` +
       `US PRICE BUCKETS (USD): budget(<$15):${usBudget} mid($15-35):${usMid} premium(>$35):${usPremium}\n` +
       `UK PRICE BUCKETS (GBP): budget(<£10):${ukBudget} mid(£10-20):${ukMid} premium(>£20):${ukPremium}\n` +
       `TOP SCENTS: ${topScents}\n` +
       `TOP BRANDS: ${topBrands}\n\n` +
       `TOP 10 BY REVIEWS:\n${top10}\n\n` +
-      `BEST BURN EFFICIENCY:\n${bestBurn}\n\n` +
-      `BEST VALUE (price/oz):\n${bestValue}\n\n` +
-      `BEST RATED:\n${bestRated}\n\n` +
-      `MOST REVIEWED:\n${mostReviewed}\n\n` +
+      `BEST BURN EFFICIENCY (Amazon only — other sources lack this data):\n${bestBurn}\n\n` +
+      `BEST VALUE price/oz (Amazon only — other sources lack this data):\n${bestValue}\n\n` +
+      `BEST RATED (Amazon only — other sources lack rating data):\n${bestRated}\n\n` +
+      `MOST REVIEWED (Amazon only — other sources lack review data):\n${mostReviewed}\n\n` +
       `QUESTION: ${question}`
 
     const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -176,7 +208,7 @@ export async function POST(req: Request) {
       body: JSON.stringify({
         model: 'llama-3.3-70b-versatile',
         messages: [{ role: 'system', content: systemMsg }, { role: 'user', content: userMsg }],
-        max_tokens: 400,
+        max_tokens: 500,
         temperature: 0.1
       })
     })
