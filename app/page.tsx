@@ -407,18 +407,12 @@ export default function Home() {
   const allTimeProducts = useMemo(() => {
     const seen = new Set<string>()
     const result: any[] = []
-    // Start with current live products
-    allProducts.forEach((p:any) => {
-      const key = `${p.product_name}||${p.source}`
-      if (!seen.has(key)) { seen.add(key); result.push(p) }
-    })
-    // Add any from history not in current
     historyData.forEach((p:any) => {
       const key = `${p.product_name}||${p.source}`
       if (!seen.has(key)) { seen.add(key); result.push(p) }
     })
     return result
-  }, [allProducts, historyData])
+  }, [historyData])
 
   const displayProducts = dashboardView === 'latest' ? latestRunProducts : allTimeProducts
   const displayBySource = (src: string) => displayProducts.filter((p:any) => p.source === src)
