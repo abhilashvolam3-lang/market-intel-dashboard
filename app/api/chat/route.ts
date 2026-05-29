@@ -185,7 +185,8 @@ CRITICAL RULES:
 5. When analyzing multiple sources, clearly state which source each insight applies to.
 6. ASDA and Primark are UK retailers — always use £ (GBP). All others use $ (USD).
 7. Be concise — max 250 words.
-8. If the question asks about a metric not available for a source, explicitly say "data not available for [source]".`
+8. If the question asks about a metric not available for a source, explicitly say "data not available for [source]".
+9. ALWAYS end your response with a one-line note like: "📊 Data coverage: [metric] available for [sources that have it] only. Not available for [sources missing it]."`
 
     const userMsg =
       (filterNote ? `ACTIVE FILTERS: ${filterNote}\n\n` : '') +
