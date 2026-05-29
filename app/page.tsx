@@ -405,14 +405,21 @@ export default function Home() {
   }, [latestRunDate, historyData, allProducts])
 
   const allTimeProducts = useMemo(() => {
+    // Get unique products from history (deduped by product_name+source)
     const seen = new Set<string>()
     const result: any[] = []
+    // Prioritize live table values for metrics (reviews, ratings, price are more up to date)
+    const liveMap = new Map(allProducts.map((p:any) => [`${p.product_name}||${p.source}`, p]))
     historyData.forEach((p:any) => {
       const key = `${p.product_name}||${p.source}`
-      if (!seen.has(key)) { seen.add(key); result.push(p) }
+      if (!seen.has(key)) {
+        seen.add(key)
+        // Use live table version if available (has fresher metrics)
+        result.push(liveMap.has(key) ? liveMap.get(key) : p)
+      }
     })
     return result
-  }, [historyData])
+  }, [allProducts, historyData])
 
   const displayProducts = dashboardView === 'latest' ? latestRunProducts : allTimeProducts
   const displayBySource = (src: string) => displayProducts.filter((p:any) => p.source === src)
@@ -491,11 +498,11 @@ export default function Home() {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:8, marginBottom:12 }}>
           {[
             { label:'Products Tracked', value:displayProducts.length.toString(), sub: dashboardView==='latest' ? `Latest run · ${latestRunDate||''}` : `All time · ${allTimeProducts.length} unique`, color:'#3b82f6' },
-            { label:'Total Reviews',    value:displayProducts.reduce((a:number,b:any)=>a+(b.reviews_count||0),0).toLocaleString(), sub:'Across all sources', color:'#8b5cf6' },
-            { label:'Avg Rating',       value:(()=>{ const v=displayProducts.filter((p:any)=>p.stars).map((p:any)=>p.stars); return v.length?avg(v).toFixed(1)+' ⭐':'N/A' })(), sub:'Combined sources', color:'#f59e0b' },
-            { label:'Avg Price/oz',     value:(()=>{ const v=displayProducts.filter((p:any)=>p.price_per_oz).map((p:any)=>p.price_per_oz); return v.length?'$'+avg(v).toFixed(2)+'/oz':'N/A' })(), sub:'Products with weight data', color:'#f97316' },
-            { label:'Avg Burn Time',    value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_hours).map((p:any)=>p.burn_hours); return v.length?Math.round(avg(v))+' hrs':'N/A' })(), sub:'Products with burn data', color:'#ef4444' },
-            { label:'Avg Burn/oz',      value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_per_oz).map((p:any)=>p.burn_per_oz); return v.length?avg(v).toFixed(1)+' hrs/oz':'N/A' })(), sub:'Products with burn data', color:'#06b6d4' },
+            { label:'Total Reviews',    value:displayProducts.reduce((a:number,b:any)=>a+(b.reviews_count||0),0).toLocaleString(), sub: dashboardView==='latest' ? `Sources in ${latestRunDate||'this run'}` : 'Across all runs', color:'#8b5cf6' },
+            { label:'Avg Rating',       value:(()=>{ const v=displayProducts.filter((p:any)=>p.stars).map((p:any)=>p.stars); return v.length?avg(v).toFixed(1)+' ⭐':'N/A' })(), sub: dashboardView==='latest' ? `${displayProducts.filter((p:any)=>p.stars).length} products with ratings` : 'All time avg rating', color:'#f59e0b' },
+            { label:'Avg Price/oz',     value:(()=>{ const v=displayProducts.filter((p:any)=>p.price_per_oz).map((p:any)=>p.price_per_oz); return v.length?'$'+avg(v).toFixed(2)+'/oz':'N/A' })(), sub:`${displayProducts.filter((p:any)=>p.price_per_oz).length} products with weight data`, color:'#f97316' },
+            { label:'Avg Burn Time',    value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_hours).map((p:any)=>p.burn_hours); return v.length?Math.round(avg(v))+' hrs':'N/A' })(), sub:`${displayProducts.filter((p:any)=>p.burn_hours).length} products with burn data`, color:'#ef4444' },
+            { label:'Avg Burn/oz',      value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_per_oz).map((p:any)=>p.burn_per_oz); return v.length?avg(v).toFixed(1)+' hrs/oz':'N/A' })(), sub:`${displayProducts.filter((p:any)=>p.burn_per_oz).length} products with burn data`, color:'#06b6d4' },
           ].map((m,i) => (
             <div key={i} style={{ ...card, padding:'10px', borderTop:`3px solid ${m.color}`, transition:'transform .2s' }}
               onMouseEnter={e=>(e.currentTarget.style.transform='translateY(-2px)')}
