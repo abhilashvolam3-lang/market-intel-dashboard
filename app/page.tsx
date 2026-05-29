@@ -373,14 +373,10 @@ export default function Home() {
   }, [allProducts, historyData])
 
   const analysisDataset = useMemo(() => {
-    if (analysisDataSource === 'current') return allProducts
-    if (analysisDataSource === 'alltime') {
-      const seen = new Set(allProducts.map((p:any) => `${p.product_name}||${p.source}`))
-      const extra = historyData.filter((p:any) => !seen.has(`${p.product_name}||${p.source}`))
-      return [...allProducts, ...extra]
-    }
+    if (analysisDataSource === 'current') return latestRunProducts
+    if (analysisDataSource === 'alltime') return allTimeProducts
     return historyData.filter((p:any) => p.scraped_at?.slice(0,10) === analysisDataSource)
-  }, [analysisDataSource, allProducts, historyData])
+  }, [analysisDataSource, latestRunProducts, allTimeProducts, historyData])
 
   const analysisFilteredCount = filterCompany === 'all'
     ? analysisDataset.filter((p:any) => filterProduct === 'all' || p.candle_type === filterProduct).length
@@ -564,9 +560,9 @@ export default function Home() {
                 <p style={{ color:'#8892a4', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.8px', margin:'0 0 8px' }}>Step 0 — Data Source</p>
                 <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                   {[
-                    { key:'current', label:`📊 Current (${allProducts.length})`, desc:'Live deduplicated data' },
-                    { key:'alltime', label: historyLoading ? `🗃️ All Time (loading...)` : `🗃️ All Time (${allTimeCount})`, desc:'Current + history combined' },
-                    ...snapshotDates.map(d => ({ key: d, label: `📅 ${d} (${historyData.filter((p:any)=>p.scraped_at?.slice(0,10)===d).length})`, desc: 'Specific snapshot' }))
+                    { key:'current', label:`📅 Latest Run · ${latestRunDate||''} (${latestRunProducts.length})`, desc:'Most recent scrape run' },
+                    { key:'alltime', label: historyLoading ? `🗃️ All Time (loading...)` : `🗃️ All Time (${allTimeProducts.length} unique)`, desc:'All unique products across all runs' },
+                    ...snapshotDates.map((d:string) => ({ key: d, label: `📅 ${d} (${historyData.filter((p:any)=>p.scraped_at?.slice(0,10)===d).length})`, desc: 'Specific snapshot' }))
                   ].map(opt => (
                     <button key={opt.key} onClick={()=>{ setAnalysisDataSource(opt.key) }}
                       style={{ padding:'7px 14px', borderRadius:8, border:'none', cursor:'pointer', fontSize:11, fontWeight:600, background:analysisDataSource===opt.key?'#10b981':'#0f1117', color:analysisDataSource===opt.key?'#fff':'#8892a4', outline:analysisDataSource===opt.key?'1px solid #10b981':'1px solid #2a2f3e' }}>
@@ -576,7 +572,7 @@ export default function Home() {
                 </div>
                 {historyLoading && <p style={{ color:'#8892a4', fontSize:10, margin:'6px 0 0' }}>Loading history data...</p>}
                 <p style={{ color:'#4a5568', fontSize:10, margin:'6px 0 0' }}>
-                  {analysisDataSource === 'current' ? '🟢 Using live market_insights table' : analysisDataSource === 'alltime' ? '🟣 Using current + all historical snapshots combined' : `📅 Using snapshot from ${analysisDataSource}`}
+                  {analysisDataSource === 'current' ? `🟢 Using latest run (${latestRunDate}) — ${latestRunProducts.length} products` : analysisDataSource === 'alltime' ? `🟣 Using all time — ${allTimeProducts.length} unique products across all runs` : `📅 Using snapshot from ${analysisDataSource}`}
                 </p>
               </div>
               <div style={{ marginBottom:18 }}>
