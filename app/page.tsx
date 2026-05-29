@@ -498,11 +498,11 @@ export default function Home() {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:8, marginBottom:12 }}>
           {[
             { label:'Products Tracked', value:displayProducts.length.toString(), sub: dashboardView==='latest' ? `Latest run · ${latestRunDate||''}` : `All time · ${allTimeProducts.length} unique`, color:'#3b82f6' },
-            { label:'Total Reviews',    value:displayProducts.reduce((a:number,b:any)=>a+(b.reviews_count||0),0).toLocaleString(), sub: dashboardView==='latest' ? `Sources in ${latestRunDate||'this run'}` : 'Across all runs', color:'#8b5cf6' },
-            { label:'Avg Rating',       value:(()=>{ const v=displayProducts.filter((p:any)=>p.stars).map((p:any)=>p.stars); return v.length?avg(v).toFixed(1)+' ⭐':'N/A' })(), sub: dashboardView==='latest' ? `${displayProducts.filter((p:any)=>p.stars).length} products with ratings` : 'All time avg rating', color:'#f59e0b' },
-            { label:'Avg Price/oz',     value:(()=>{ const v=displayProducts.filter((p:any)=>p.price_per_oz).map((p:any)=>p.price_per_oz); return v.length?'$'+avg(v).toFixed(2)+'/oz':'N/A' })(), sub:`${displayProducts.filter((p:any)=>p.price_per_oz).length} products with weight data`, color:'#f97316' },
-            { label:'Avg Burn Time',    value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_hours).map((p:any)=>p.burn_hours); return v.length?Math.round(avg(v))+' hrs':'N/A' })(), sub:`${displayProducts.filter((p:any)=>p.burn_hours).length} products with burn data`, color:'#ef4444' },
-            { label:'Avg Burn/oz',      value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_per_oz).map((p:any)=>p.burn_per_oz); return v.length?avg(v).toFixed(1)+' hrs/oz':'N/A' })(), sub:`${displayProducts.filter((p:any)=>p.burn_per_oz).length} products with burn data`, color:'#06b6d4' },
+            { label:'Total Reviews',    value:displayProducts.reduce((a:number,b:any)=>a+(b.reviews_count||0),0).toLocaleString(), sub: '📦 Amazon data only', color:'#8b5cf6' },
+            { label:'Avg Rating',       value:(()=>{ const v=displayProducts.filter((p:any)=>p.stars).map((p:any)=>p.stars); return v.length?avg(v).toFixed(1)+' ⭐':'N/A' })(), sub:'📦 Amazon data only', color:'#f59e0b' },
+            { label:'Avg Price/oz',     value:(()=>{ const v=displayProducts.filter((p:any)=>p.price_per_oz).map((p:any)=>p.price_per_oz); return v.length?'$'+avg(v).toFixed(2)+'/oz':'N/A' })(), sub:'📦 Amazon data only', color:'#f97316' },
+            { label:'Avg Burn Time',    value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_hours).map((p:any)=>p.burn_hours); return v.length?Math.round(avg(v))+' hrs':'N/A' })(), sub:'📦 Amazon data only', color:'#ef4444' },
+            { label:'Avg Burn/oz',      value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_per_oz).map((p:any)=>p.burn_per_oz); return v.length?avg(v).toFixed(1)+' hrs/oz':'N/A' })(), sub:'📦 Amazon data only', color:'#06b6d4' },
           ].map((m,i) => (
             <div key={i} style={{ ...card, padding:'10px', borderTop:`3px solid ${m.color}`, transition:'transform .2s' }}
               onMouseEnter={e=>(e.currentTarget.style.transform='translateY(-2px)')}
