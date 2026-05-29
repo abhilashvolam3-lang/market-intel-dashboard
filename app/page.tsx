@@ -157,6 +157,7 @@ export default function Home() {
   const [historyLoaded, setHistoryLoaded]       = useState(false)
   const [historyDateFilter, setHistoryDateFilter] = useState('all')
   const [historySubTab, setHistorySubTab] = useState<'runs'|'trends'>('runs')
+  const [dashboardView, setDashboardView] = useState<'latest'|'alltime'>('latest')
   const [priceTrackerSearch, setPriceTrackerSearch] = useState('')
   const [priceTrackerSelected, setPriceTrackerSelected] = useState<any>(null)
   const [analysisDataSource, setAnalysisDataSource] = useState<'current'|'alltime'|string>('current')
@@ -392,6 +393,36 @@ export default function Home() {
     .filter(p => !searchTerm || p.product_name?.toLowerCase().includes(searchTerm.toLowerCase()) || p.brand?.toLowerCase().includes(searchTerm.toLowerCase()))
     .sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0))
 
+  // Latest run = most recent snapshot date from history
+  const latestRunDate = useMemo(() => {
+    const dates = [...new Set(historyData.map((h:any) => h.scraped_at?.slice(0,10)))].filter(Boolean).sort().reverse()
+    return dates[0] || null
+  }, [historyData])
+
+  const latestRunProducts = useMemo(() => {
+    if (!latestRunDate) return allProducts
+    return historyData.filter((h:any) => h.scraped_at?.slice(0,10) === latestRunDate)
+  }, [latestRunDate, historyData, allProducts])
+
+  const allTimeProducts = useMemo(() => {
+    const seen = new Set<string>()
+    const result: any[] = []
+    // Start with current live products
+    allProducts.forEach((p:any) => {
+      const key = `${p.product_name}||${p.source}`
+      if (!seen.has(key)) { seen.add(key); result.push(p) }
+    })
+    // Add any from history not in current
+    historyData.forEach((p:any) => {
+      const key = `${p.product_name}||${p.source}`
+      if (!seen.has(key)) { seen.add(key); result.push(p) }
+    })
+    return result
+  }, [allProducts, historyData])
+
+  const displayProducts = dashboardView === 'latest' ? latestRunProducts : allTimeProducts
+  const displayBySource = (src: string) => displayProducts.filter((p:any) => p.source === src)
+
   if (loading) return (
     <div style={{ minHeight:'100vh', background:'#0f1117', display:'flex', alignItems:'center', justifyContent:'center' }}>
       <div style={{ textAlign:'center' }}><div style={{ fontSize:40, marginBottom:16 }}>🕯️</div><p style={{ color:'#8892a4' }}>Loading...</p></div>
@@ -446,15 +477,31 @@ export default function Home() {
       </div>
 
       <div style={{ maxWidth:1400, margin:'0 auto', padding:'16px 40px' }}>
+
+        {/* VIEW TOGGLE */}
+        <div style={{ display:'flex', gap:4, marginBottom:14, alignItems:'center', justifyContent:'space-between', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', gap:4, background:'#1e2433', borderRadius:10, padding:4 }}>
+            <button onClick={()=>setDashboardView('latest')} style={{ padding:'8px 20px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:700, background:dashboardView==='latest'?'#3b82f6':'transparent', color:dashboardView==='latest'?'#fff':'#8892a4', transition:'all .2s' }}>
+              📅 Latest Run {latestRunDate ? `(${latestRunDate})` : ''}
+            </button>
+            <button onClick={()=>setDashboardView('alltime')} style={{ padding:'8px 20px', borderRadius:7, border:'none', cursor:'pointer', fontSize:12, fontWeight:700, background:dashboardView==='alltime'?'#8b5cf6':'transparent', color:dashboardView==='alltime'?'#fff':'#8892a4', transition:'all .2s' }}>
+              🗃️ All Time ({allTimeProducts.length} unique)
+            </button>
+          </div>
+          <p style={{ color:'#4a5568', fontSize:10, margin:0 }}>
+            {dashboardView==='latest' ? `Showing ${latestRunProducts.length} products from the most recent scrape run` : `Showing ${allTimeProducts.length} unique products across all scrape runs`}
+          </p>
+        </div>
+
         {/* KPI ROW */}
         <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:8, marginBottom:12 }}>
           {[
-            { label:'Products Tracked', value:allProducts.length.toString(), sub:`${amazonP.length} AMZ · ${pfP.length} PF · ${hsP.length} HS · ${pwP.length} PW · ${olP.length} OL · ${bsP.length} BS · ${kpP.length} KP · ${asdaP.length} ASDA · ${priP.length} PRI`, color:'#3b82f6' },
-            { label:'Total Reviews',    value:totalReviews.toLocaleString(), sub:'Across all sources', color:'#8b5cf6' },
-            { label:'Avg Rating',       value:avg(validStars).toFixed(1)+' ⭐', sub:'Combined sources', color:'#f59e0b' },
-            { label:'Avg Price/oz',     value:validPPoz.length?'$'+avg(validPPoz).toFixed(2)+'/oz':'N/A', sub:'Products with weight data', color:'#f97316' },
-            { label:'Avg Burn Time',    value:validBurnHz.length?Math.round(avg(validBurnHz))+' hrs':'N/A', sub:'Products with burn data', color:'#ef4444' },
-            { label:'Avg Burn/oz',      value:validBurnPoz.length?avg(validBurnPoz).toFixed(1)+' hrs/oz':'N/A', sub:'Products with burn data', color:'#06b6d4' },
+            { label:'Products Tracked', value:displayProducts.length.toString(), sub: dashboardView==='latest' ? `Latest run · ${latestRunDate||''}` : `All time · ${allTimeProducts.length} unique`, color:'#3b82f6' },
+            { label:'Total Reviews',    value:displayProducts.reduce((a:number,b:any)=>a+(b.reviews_count||0),0).toLocaleString(), sub:'Across all sources', color:'#8b5cf6' },
+            { label:'Avg Rating',       value:(()=>{ const v=displayProducts.filter((p:any)=>p.stars).map((p:any)=>p.stars); return v.length?avg(v).toFixed(1)+' ⭐':'N/A' })(), sub:'Combined sources', color:'#f59e0b' },
+            { label:'Avg Price/oz',     value:(()=>{ const v=displayProducts.filter((p:any)=>p.price_per_oz).map((p:any)=>p.price_per_oz); return v.length?'$'+avg(v).toFixed(2)+'/oz':'N/A' })(), sub:'Products with weight data', color:'#f97316' },
+            { label:'Avg Burn Time',    value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_hours).map((p:any)=>p.burn_hours); return v.length?Math.round(avg(v))+' hrs':'N/A' })(), sub:'Products with burn data', color:'#ef4444' },
+            { label:'Avg Burn/oz',      value:(()=>{ const v=displayProducts.filter((p:any)=>p.burn_per_oz).map((p:any)=>p.burn_per_oz); return v.length?avg(v).toFixed(1)+' hrs/oz':'N/A' })(), sub:'Products with burn data', color:'#06b6d4' },
           ].map((m,i) => (
             <div key={i} style={{ ...card, padding:'10px', borderTop:`3px solid ${m.color}`, transition:'transform .2s' }}
               onMouseEnter={e=>(e.currentTarget.style.transform='translateY(-2px)')}
@@ -470,8 +517,8 @@ export default function Home() {
         <div style={{ display:'flex', gap:6, marginBottom:12, flexWrap:'wrap', alignItems:'center', background:'#1e2433', borderRadius:10, padding:'8px 14px' }}>
           <span style={{ color:'#4a5568', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'.6px', marginRight:4 }}>By Type:</span>
           {PRODUCT_TYPES.filter(pt=>pt.key!=='all').map(pt=>{
-            const count = allProducts.filter(p=>(p.candle_type||'other')===pt.key).length
-            const pct   = allProducts.length > 0 ? ((count/allProducts.length)*100).toFixed(0) : '0'
+            const count = displayProducts.filter((p:any)=>(p.candle_type||'other')===pt.key).length
+            const pct   = displayProducts.length > 0 ? ((count/displayProducts.length)*100).toFixed(0) : '0'
             if (count === 0) return null
             return (
               <span key={pt.key} style={{ fontSize:10, padding:'3px 9px', borderRadius:20, background:'#0f1117', border:'1px solid #2a2f3e', color:'#e2e8f0', display:'flex', gap:5, alignItems:'center' }}>
@@ -482,12 +529,14 @@ export default function Home() {
             )
           })}
           <span style={{ marginLeft:'auto', fontSize:10, color:'#4a5568' }}>
-            Total: <span style={{ color: allProducts.length === PRODUCT_TYPES.filter(pt=>pt.key!=='all').reduce((sum,pt)=>sum+allProducts.filter(p=>(p.candle_type||'other')===pt.key).length,0) ? '#10b981' : '#ef4444', fontWeight:700 }}>{allProducts.length}</span>
+            Total: <span style={{ color:'#10b981', fontWeight:700 }}>{displayProducts.length}</span>
           </span>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(9,1fr)', gap:8, marginBottom:16 }}>
-          {srcList.map(({src,products}) => {
+          {Object.keys(SOURCE_CONFIG).map(src => {
             const cfg = SOURCE_CONFIG[src]
+            const count = displayBySource(src).length
+            if (count === 0) return null
             return (
               <div key={src} onClick={()=>{setActiveTab('data');setActiveSource(src as SourceKey)}}
                 style={{ ...card, padding:'8px 10px', border:`1px solid ${cfg.color}25`, cursor:'pointer', transition:'all .2s' }}
@@ -495,7 +544,7 @@ export default function Home() {
                 onMouseLeave={e=>{e.currentTarget.style.borderColor=cfg.color+'25';e.currentTarget.style.transform='translateY(0)'}}>
                 <p style={{ color:'#8892a4', fontSize:8, fontWeight:700, textTransform:'uppercase', margin:'0 0 2px', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{cfg.icon} {SOURCE_DISPLAY_NAMES[src]}</p>
                 <p style={{ color:'#6b7280', fontSize:8, margin:'0 0 3px' }}>{cfg.tier}</p>
-                <p style={{ color:'#fff', fontSize:18, fontWeight:800, margin:0 }}>{products.length}</p>
+                <p style={{ color:'#fff', fontSize:18, fontWeight:800, margin:0 }}>{count}</p>
               </div>
             )
           })}
