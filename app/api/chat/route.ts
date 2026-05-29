@@ -41,26 +41,46 @@ export async function POST(req: Request) {
     // ── Fetch products based on selected data source ──────────────────────────
     let all: any[] = []
 
-    if (dataSource === 'current' || dataSource === 'alltime') {
-      // Query live market_insights table
-      let query = supabase
-        .from('market_insights')
-        .select('product_name, brand, price, stars, reviews_count, burn_hours, burn_per_oz, price_per_oz, weight_oz, scent_name, candle_type, is_scented, source, wick_quantity, material_type')
-        .limit(5000)
+    if (dataSource === 'current') {
+      // Get latest snapshot date from history
+      const { data: latestDateData } = await supabase
+        .from('market_insights_history')
+        .select('scraped_at')
+        .order('scraped_at', { ascending: false })
+        .limit(1)
 
-      if (sourceFilter !== 'all') query = query.eq('source', sourceFilter)
-      if (categoryFilter !== 'all') query = query.eq('candle_type', categoryFilter)
+      const latestDate = latestDateData?.[0]?.scraped_at?.slice(0,10)
 
-      if (intent === 'burn') query = query.not('burn_per_oz', 'is', null).order('burn_per_oz', { ascending: false })
-      else if (intent === 'price') query = query.not('price', 'is', null).order('price', { ascending: true })
-      else if (intent === 'rating') query = query.not('stars', 'is', null).order('stars', { ascending: false })
-      else query = query.order('reviews_count', { ascending: false })
+      if (latestDate) {
+        // Use latest snapshot
+        let query = supabase
+          .from('market_insights_history')
+          .select('product_name, brand, price, stars, reviews_count, burn_hours, burn_per_oz, price_per_oz, weight_oz, scent_name, candle_type, is_scented, source')
+          .gte('scraped_at', `${latestDate}T00:00:00`)
+          .lte('scraped_at', `${latestDate}T23:59:59`)
+          .limit(5000)
 
-      const { data, error } = await query
-      if (error) return NextResponse.json({ answer: 'Database error: ' + error.message })
-      all = data || []
+        if (sourceFilter !== 'all') query = query.eq('source', sourceFilter)
+        if (categoryFilter !== 'all') query = query.eq('candle_type', categoryFilter)
 
-      if (dataSource === 'alltime') {
+        const { data, error } = await query
+        if (error) return NextResponse.json({ answer: 'Database error: ' + error.message })
+        all = data || []
+      } else {
+        // Fallback to live table if no history
+        let query = supabase
+          .from('market_insights')
+          .select('product_name, brand, price, stars, reviews_count, burn_hours, burn_per_oz, price_per_oz, weight_oz, scent_name, candle_type, is_scented, source')
+          .limit(5000)
+
+        if (sourceFilter !== 'all') query = query.eq('source', sourceFilter)
+        if (categoryFilter !== 'all') query = query.eq('candle_type', categoryFilter)
+
+        const { data, error } = await query
+        if (error) return NextResponse.json({ answer: 'Database error: ' + error.message })
+        all = data || []
+      }
+    } else if (dataSource === 'alltime') {
         // Also fetch history and add unique products not in live table
         const { data: histData } = await supabase
           .from('market_insights_history')
