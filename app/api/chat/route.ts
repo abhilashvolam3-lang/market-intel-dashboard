@@ -179,12 +179,13 @@ export async function POST(req: Request) {
 
 CRITICAL RULES:
 1. Answer using ONLY the statistics and product data provided. NEVER invent or assume numbers.
-2. Each source has different available data fields — ONLY analyze metrics marked as AVAILABLE for each source.
-3. If a source shows "MISSING DATA" for a metric, do NOT analyze, infer, or mention that metric for that source.
-4. When analyzing multiple sources, clearly state which source each insight applies to.
-5. ASDA and Primark are UK retailers — always use £ (GBP). All others use $ (USD).
-6. Be concise — max 250 words.
-7. If the question asks about a metric not available for a source, explicitly say "data not available for [source]".`
+2. The ONLY sources in this dataset are: ${sources.join(', ')}. Do NOT mention any other retailer or brand not in this list (e.g. Walmart, Target, Costco do NOT exist in this dataset).
+3. Each source has different available data fields — ONLY analyze metrics marked as AVAILABLE for each source.
+4. If a source shows "MISSING DATA" for a metric, do NOT analyze, infer, or mention that metric for that source.
+5. When analyzing multiple sources, clearly state which source each insight applies to.
+6. ASDA and Primark are UK retailers — always use £ (GBP). All others use $ (USD).
+7. Be concise — max 250 words.
+8. If the question asks about a metric not available for a source, explicitly say "data not available for [source]".`
 
     const userMsg =
       (filterNote ? `ACTIVE FILTERS: ${filterNote}\n\n` : '') +
