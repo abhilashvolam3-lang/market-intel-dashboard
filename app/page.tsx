@@ -27,21 +27,25 @@ function renderLine(line: string, j: number) {
 }
 
 const SOURCE_CONFIG: Record<string, { color: string; bg: string; label: string; icon: string; tier: string }> = {
-  amazon:    { color: '#fbbf24', bg: '#ff990020', label: 'AMAZON',     icon: '📦', tier: 'Mass Market'   },
-  pfcandleco:{ color: '#a78bfa', bg: '#8b5cf620', label: 'PF CANDLE',  icon: '✨', tier: 'Premium Indie' },
-  homesick:  { color: '#f97316', bg: '#f9731620', label: 'HOMESICK',   icon: '🏠', tier: 'Mid-Premium'   },
-  paddywax:  { color: '#10b981', bg: '#10b98120', label: 'PADDYWAX',   icon: '🕯', tier: 'Artisan'       },
-  otherland: { color: '#ec4899', bg: '#ec489920', label: 'OTHERLAND',  icon: '🌿', tier: 'Premium Indie' },
-  boysmells: { color: '#8b5cf6', bg: '#8b5cf620', label: 'BOY SMELLS', icon: '🌸', tier: 'Luxury'        },
-  keap:      { color: '#34d399', bg: '#34d39920', label: 'KEAP',       icon: '🌱', tier: 'Eco'           },
-  asda:      { color: '#84cc16', bg: '#84cc1620', label: 'ASDA',       icon: '🛒', tier: 'UK Grocery'    },
-  primark:   { color: '#f9a8d4', bg: '#ec489920', label: 'PRIMARK',    icon: '👜', tier: 'UK Budget'     },
+  amazon:      { color: '#fbbf24', bg: '#ff990020', label: 'AMAZON',        icon: '📦', tier: 'Mass Market'   },
+  pfcandleco:  { color: '#a78bfa', bg: '#8b5cf620', label: 'PF CANDLE',     icon: '✨', tier: 'Premium Indie' },
+  homesick:    { color: '#f97316', bg: '#f9731620', label: 'HOMESICK',      icon: '🏠', tier: 'Mid-Premium'   },
+  paddywax:    { color: '#10b981', bg: '#10b98120', label: 'PADDYWAX',      icon: '🕯', tier: 'Artisan'       },
+  otherland:   { color: '#ec4899', bg: '#ec489920', label: 'OTHERLAND',     icon: '🌿', tier: 'Premium Indie' },
+  boysmells:   { color: '#8b5cf6', bg: '#8b5cf620', label: 'BOY SMELLS',    icon: '🌸', tier: 'Luxury'        },
+  keap:        { color: '#34d399', bg: '#34d39920', label: 'KEAP',          icon: '🌱', tier: 'Eco'           },
+  asda:        { color: '#84cc16', bg: '#84cc1620', label: 'ASDA',          icon: '🛒', tier: 'UK Grocery'    },
+  primark:     { color: '#f9a8d4', bg: '#ec489920', label: 'PRIMARK',       icon: '👜', tier: 'UK Budget'     },
+  walmart:     { color: '#0071ce', bg: '#0071ce20', label: 'WALMART',       icon: '🏪', tier: 'Mass Market'   },
+  familydollar:{ color: '#ef4444', bg: '#ef444420', label: 'FAMILY DOLLAR', icon: '💲', tier: 'Value'         },
+  dollartree:  { color: '#22c55e', bg: '#22c55e20', label: 'DOLLAR TREE',   icon: '🌳', tier: 'Budget'        },
 }
 
 const SOURCE_DISPLAY_NAMES: Record<string, string> = {
   amazon: 'Amazon', pfcandleco: 'P.F. Candle Co', homesick: 'Homesick',
   paddywax: 'Paddywax', otherland: 'Otherland', boysmells: 'Boy Smells',
   keap: 'Keap', asda: 'ASDA', primark: 'Primark',
+  walmart: 'Walmart', familydollar: 'Family Dollar', dollartree: 'Dollar Tree',
 }
 
 const FEATURES = [
@@ -76,7 +80,7 @@ const SCENT_FAMILIES: Record<string, string[]> = {
 
 const UK_SOURCES = ['asda', 'primark']
 
-type SourceKey = 'all' | 'amazon' | 'pfcandleco' | 'homesick' | 'paddywax' | 'otherland' | 'boysmells' | 'keap' | 'asda' | 'primark'
+type SourceKey = 'all' | 'amazon' | 'pfcandleco' | 'homesick' | 'paddywax' | 'otherland' | 'boysmells' | 'keap' | 'asda' | 'primark' | 'walmart' | 'familydollar' | 'dollartree'
 type CandleType = 'all' | 'jar-container' | 'multi-pack' | 'tea-light' | 'taper-pillar' | 'reed-diffuser' | 'other'
 type ScentFilter = 'all' | 'scented' | 'unscented'
 type SortKey = 'reviews_count' | 'stars' | 'price' | 'burn_hours' | 'burn_per_oz' | 'price_per_oz'
