@@ -81,17 +81,27 @@ export async function POST(req: Request) {
         all = data || []
       }
     } else if (dataSource === 'alltime') {
-        // Also fetch history and add unique products not in live table
-        const { data: histData } = await supabase
-          .from('market_insights_history')
-          .select('product_name, brand, price, stars, reviews_count, burn_hours, burn_per_oz, price_per_oz, weight_oz, scent_name, candle_type, is_scented, source')
-          .limit(5000)
+      // Query live table first, then add unique history products
+      let query = supabase
+        .from('market_insights')
+        .select('product_name, brand, price, stars, reviews_count, burn_hours, burn_per_oz, price_per_oz, weight_oz, scent_name, candle_type, is_scented, source')
+        .limit(5000)
 
-        if (histData) {
-          const liveKeys = new Set(all.map((p: any) => `${p.product_name}||${p.source}`))
-          const extraFromHistory = histData.filter((p: any) => !liveKeys.has(`${p.product_name}||${p.source}`))
-          all = [...all, ...extraFromHistory]
-        }
+      if (sourceFilter !== 'all') query = query.eq('source', sourceFilter)
+      if (categoryFilter !== 'all') query = query.eq('candle_type', categoryFilter)
+
+      const { data: liveData } = await query
+      all = liveData || []
+
+      const { data: histData } = await supabase
+        .from('market_insights_history')
+        .select('product_name, brand, price, stars, reviews_count, burn_hours, burn_per_oz, price_per_oz, weight_oz, scent_name, candle_type, is_scented, source')
+        .limit(5000)
+
+      if (histData) {
+        const liveKeys = new Set(all.map((p: any) => `${p.product_name}||${p.source}`))
+        const extraFromHistory = histData.filter((p: any) => !liveKeys.has(`${p.product_name}||${p.source}`))
+        all = [...all, ...extraFromHistory]
       }
     } else {
       // Specific snapshot date — query history table
